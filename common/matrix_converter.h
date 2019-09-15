@@ -17,7 +17,7 @@ public:
 
   const matrix_market::matrix_class::matrix_meta meta;
 
-private:
+public:
   std::unique_ptr<double[]> data;
   std::unique_ptr<unsigned int[]> columns;
   std::unique_ptr<unsigned int[]> row_ptr;

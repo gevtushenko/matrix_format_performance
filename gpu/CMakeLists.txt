@@ -2,7 +2,9 @@ project(gpu)
 
 set(GPU_SOURCES
         gpu_matrix_multiplier.h
-        gpu_matrix_multiplier.cpp)
+        gpu_matrix_multiplier.cu
+        resizable_gpu_memory.h
+        resizable_gpu_memory.cpp)
 
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O3 -lineinfo")
 cuda_add_library(gpu ${GPU_SOURCES})
