@@ -39,8 +39,14 @@ int main(int argc, char *argv[])
 
   /// GPU
   {
-    auto gpu_time = csr_spmv (csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-    cout << "GPU: " << gpu_time << endl;
+    auto gpu_time = gpu_csr_spmv (csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+    cout << "GPU CSR: " << gpu_time << " (S = " << cpu_naive_time / gpu_time << ")" << endl;
+  }
+
+  {
+    ell_matrix_class ell_matrix (csr_matrix);
+    auto gpu_time = gpu_ell_spmv (ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
+    cout << "GPU ELL: " << gpu_time << " (S = " << cpu_naive_time / gpu_time << ")" << endl;
   }
 
   return 0;
