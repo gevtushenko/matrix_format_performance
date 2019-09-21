@@ -5,11 +5,10 @@ set(CMAKE_CXX_STANDARD 14)
 
 find_package(CUDA REQUIRED)
 add_subdirectory(external/matrix_reader)
+add_subdirectory(external/cpp_itt)
 add_subdirectory(common)
 add_subdirectory(gpu)
 add_subdirectory(cpu)
 
 add_executable(${PROJECT_NAME} main.cpp)
-target_link_libraries(${PROJECT_NAME} common)
-
-target_link_libraries(${PROJECT_NAME} gpu cpu)
+target_link_libraries(${PROJECT_NAME} common gpu cpu cpp_itt)

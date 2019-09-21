@@ -42,6 +42,27 @@ double cpu_csr_spmv_single_thread_naive (
   return chrono::duration<double> (end - begin).count ();
 }
 
+void cpu_csr_spmv_multi_thread_naive_kernel (
+    const double *x,
+    double *y,
+    const unsigned int *row_ptr,
+    const unsigned int *col_ids,
+    const double *data,
+    const unsigned int thread_begin,
+    const unsigned int thread_end)
+{
+  for (unsigned int row = thread_begin; row < thread_end; row++)
+  {
+    const auto row_start = row_ptr[row];
+    const auto row_end = row_ptr[row + 1];
+
+    double dot = 0;
+    for (auto element = row_start; element < row_end; element++)
+      dot += data[element] * x[col_ids[element]];
+    y[row] = dot;
+  }
+}
+
 double cpu_csr_spmv_multi_thread_naive (
     const csr_matrix_class &matrix,
     double *x,
@@ -71,17 +92,9 @@ double cpu_csr_spmv_multi_thread_naive (
         _mm_pause ();
 
       auto begin = chrono::system_clock::now ();
-      for (unsigned int row = thread_begin; row < thread_end; row++) {
-        const auto row_start = row_ptr[row];
-        const auto row_end = row_ptr[row + 1];
-
-        double dot = 0;
-        for (auto element = row_start; element < row_end; element++)
-          dot += data[element] * x[col_ids[element]];
-        y[row] = dot;
-      }
-
+      cpu_csr_spmv_multi_thread_naive_kernel (x, y, row_ptr, col_ids, data, thread_begin, thread_end);
       auto end = chrono::system_clock::now ();
+
       times[thread] = chrono::duration<double> (end - begin).count ();
     });
 

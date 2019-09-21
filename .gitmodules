@@ -1,3 +1,6 @@
 [submodule "external/matrix_reader"]
 	path = external/matrix_reader
 	url = https://github.com/senior-zero/matrix_reader
+[submodule "external/cpp_itt"]
+	path = external/cpp_itt
+	url = https://github.com/senior-zero/cpp_itt.git
