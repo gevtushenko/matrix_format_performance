@@ -11,7 +11,7 @@ template <typename T>
 class resizable_gpu_memory;
 
 /// Perform y = Ax
-void csr_spmv (
+double csr_spmv (
     const csr_matrix_class &matrix,
     resizable_gpu_memory<double> &A,
     resizable_gpu_memory<unsigned int> &col_ids,

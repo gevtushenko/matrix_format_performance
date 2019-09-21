@@ -39,7 +39,7 @@ __global__ void fill_vector (unsigned int n, double *vec, double value)
 
 #include <iostream>
 
-void csr_spmv (
+double csr_spmv (
     const csr_matrix_class &matrix,
     resizable_gpu_memory<double> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -76,6 +76,11 @@ void csr_spmv (
     fill_vector<<<grid_size, block_size>>> (vec_size, x.get (), 1.0);
   }
 
+  cudaEvent_t start, stop;
+  cudaEventCreate (&start);
+  cudaEventCreate (&stop);
+
+  cudaEventRecord (start);
   {
     dim3 block_size = dim3 (512);
     dim3 grid_size {};
@@ -86,6 +91,11 @@ void csr_spmv (
         static_cast<unsigned int> (meta.rows_count),
             col_ids.get (), row_ptr.get (), A.get (), x.get (), y.get ());
   }
+  cudaEventRecord (stop);
+  cudaEventSynchronize (stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime (&milliseconds, start, stop);
 
   cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
 
@@ -93,5 +103,7 @@ void csr_spmv (
   for (unsigned int i = 0; i < vec_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+
+  return milliseconds / 1000;
 }
 

@@ -8,7 +8,7 @@
 class csr_matrix_class;
 
 /// Perform y = Ax
-void cpu_csr_spmv_single_thread_naive (
+double cpu_csr_spmv_single_thread_naive (
     const csr_matrix_class &matrix,
     double *x,
     double *y);

@@ -5,9 +5,11 @@
 #include "cpu_matrix_multiplier.h"
 #include "matrix_converter.h"
 
+#include <chrono>
+
 using namespace std;
 
-void cpu_csr_spmv_single_thread_naive (
+double cpu_csr_spmv_single_thread_naive (
     const csr_matrix_class &matrix,
     double *x,
     double *y)
@@ -17,6 +19,8 @@ void cpu_csr_spmv_single_thread_naive (
   const auto row_ptr = matrix.row_ptr.get ();
   const auto col_ids = matrix.columns.get ();
   const auto data = matrix.data.get ();
+
+  auto begin = chrono::system_clock::now ();
 
   for (unsigned int row = 0; row < matrix.meta.rows_count; row++)
   {
@@ -28,4 +32,7 @@ void cpu_csr_spmv_single_thread_naive (
       dot += data[element] * x[col_ids[element]];
     y[row] = dot;
   }
+
+  auto end = chrono::system_clock::now ();
+  return chrono::duration<double> (end - begin).count ();
 }

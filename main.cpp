@@ -18,6 +18,8 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  cout << "Start loading" << endl;
+
   ifstream is (argv[1]);
   matrix_market::reader reader (is);
 
@@ -27,7 +29,9 @@ int main(int argc, char *argv[])
   std::unique_ptr<double[]> reference_answer (new double[csr_matrix.meta.cols_count]);
   std::unique_ptr<double[]> x (new double[csr_matrix.meta.cols_count]);
 
-  cpu_csr_spmv_single_thread_naive (csr_matrix, x.get (), reference_answer.get ());
+  cout << "Complete loading" << endl;
+  auto cpu_naive_time = cpu_csr_spmv_single_thread_naive (csr_matrix, x.get (), reference_answer.get ());
+  cout << "CPU: " << cpu_naive_time << endl;
 
   /// GPU Reusable memory
   resizable_gpu_memory<double> A, x_gpu, y;
@@ -35,7 +39,8 @@ int main(int argc, char *argv[])
 
   /// GPU
   {
-    csr_spmv (csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+    auto gpu_time = csr_spmv (csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+    cout << "GPU: " << gpu_time << endl;
   }
 
   return 0;
