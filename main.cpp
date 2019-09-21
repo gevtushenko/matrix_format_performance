@@ -33,6 +33,9 @@ int main(int argc, char *argv[])
   auto cpu_naive_time = cpu_csr_spmv_single_thread_naive (csr_matrix, x.get (), reference_answer.get ());
   cout << "CPU: " << cpu_naive_time << endl;
 
+  auto cpu_parallel_naive_time = cpu_csr_spmv_multi_thread_naive (csr_matrix, x.get (), reference_answer.get ());
+  cout << "CPU: " << cpu_parallel_naive_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_time << ")" << endl;
+
   /// GPU Reusable memory
   resizable_gpu_memory<double> A, x_gpu, y;
   resizable_gpu_memory<unsigned int> col_ids, row_ptr;
@@ -40,13 +43,13 @@ int main(int argc, char *argv[])
   /// GPU
   {
     auto gpu_time = gpu_csr_spmv (csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-    cout << "GPU CSR: " << gpu_time << " (S = " << cpu_naive_time / gpu_time << ")" << endl;
+    cout << "GPU CSR: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
   }
 
   {
     ell_matrix_class ell_matrix (csr_matrix);
     auto gpu_time = gpu_ell_spmv (ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
-    cout << "GPU ELL: " << gpu_time << " (S = " << cpu_naive_time / gpu_time << ")" << endl;
+    cout << "GPU ELL: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
   }
 
   return 0;
