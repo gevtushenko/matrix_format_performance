@@ -160,6 +160,7 @@ double gpu_ell_spmv (
 
     grid_size.x = (vec_size + block_size.x - 1) / block_size.x;
     fill_vector<<<grid_size, block_size>>> (vec_size, x.get (), 1.0);
+    fill_vector<<<grid_size, block_size>>> (vec_size, y.get (), 0.0);
   }
 
   cudaEvent_t start, stop;
