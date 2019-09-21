@@ -4,3 +4,6 @@
 [submodule "external/cpp_itt"]
 	path = external/cpp_itt
 	url = https://github.com/senior-zero/cpp_itt.git
+[submodule "external/vectorclass"]
+	path = external/vectorclass
+	url = https://github.com/vectorclass/version2.git

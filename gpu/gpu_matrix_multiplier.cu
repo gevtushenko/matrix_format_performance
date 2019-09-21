@@ -98,7 +98,7 @@ double gpu_csr_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
 
-  constexpr double epsilon = 1e-18;
+  constexpr double epsilon = 1e-14;
   for (unsigned int i = 0; i < vec_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
@@ -185,7 +185,7 @@ double gpu_ell_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
 
-  constexpr double epsilon = 1e-18;
+  constexpr double epsilon = 1e-14;
   for (unsigned int i = 0; i < vec_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";

@@ -23,6 +23,7 @@ int main(int argc, char *argv[])
   cout << "Start loading" << endl;
 
   unique_ptr<csr_matrix_class> csr_matrix;
+  unique_ptr<ell_matrix_class> ell_matrix;
 
   {
     cpp_itt::quiet_region region;
@@ -33,6 +34,9 @@ int main(int argc, char *argv[])
 
     csr_matrix = make_unique<csr_matrix_class> (reader.matrix ());
     cout << "Complete converting to CSR" << endl;
+
+    ell_matrix = make_unique<ell_matrix_class> (*csr_matrix);
+    cout << "Complete converting to ELL" << endl;
   }
 
   // CPU
@@ -52,7 +56,19 @@ int main(int argc, char *argv[])
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
     cpu_parallel_naive_time = cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), reference_answer.get ());
-    cout << "CPU: " << cpu_parallel_naive_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_time << ")" << endl;
+    cout << "CPU Parallel: " << cpu_parallel_naive_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_time << ")" << endl;
+  }
+
+  {
+    auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
+    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_naive (*ell_matrix, x.get (), reference_answer.get ());
+    cout << "CPU Parallel ELL: " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
+  }
+
+  {
+    auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
+    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_avx2 (*ell_matrix, x.get (), reference_answer.get ());
+    cout << "CPU Parallel ELL (AVX2): " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
   }
 
   /// GPU Reusable memory
@@ -69,8 +85,7 @@ int main(int argc, char *argv[])
     }
 
     {
-      ell_matrix_class ell_matrix (*csr_matrix);
-      auto gpu_time = gpu_ell_spmv (ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = gpu_ell_spmv (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
       cout << "GPU ELL: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
   }
