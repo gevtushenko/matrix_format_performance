@@ -4,6 +4,9 @@
 
 #include "matrix_converter.h"
 
+#include <iostream>
+#include <limits>
+
 csr_matrix_class::csr_matrix_class (matrix_market::matrix_class &matrix)
   : meta (matrix.meta)
 {
@@ -56,13 +59,27 @@ ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix)
   const auto row_ptr = matrix.row_ptr.get ();
   const auto col_ptr = matrix.columns.get ();
 
+  auto min_elements_in_rows = std::numeric_limits<unsigned int>::max () - 1;
+  unsigned int sum_elements_in_rows = 0;
+
   for (unsigned int row = 0; row < meta.rows_count; row++)
   {
     const auto elements_in_row = row_ptr[row + 1] - row_ptr[row];
 
     if (elements_in_row > elements_in_rows)
       elements_in_rows = elements_in_row;
+
+    if (elements_in_row < min_elements_in_rows)
+      min_elements_in_rows = elements_in_row;
+
+    sum_elements_in_rows += elements_in_row;
   }
+
+  const unsigned int avg_elements_in_rows = sum_elements_in_rows / meta.rows_count;
+
+  std::cout << "ELL: " << elements_in_rows
+            << " elements in rows (min: " << min_elements_in_rows
+            << "; avg: " << avg_elements_in_rows << ")" << std::endl;
 
   const unsigned int elements_count = elements_in_rows * meta.rows_count;
   data.reset (new double [elements_count]);
