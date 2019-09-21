@@ -6,6 +6,7 @@
 #include "matrix_converter.h"
 
 #include "gpu_matrix_multiplier.h"
+#include "cpu_matrix_multiplier.h"
 
 using namespace std;
 
@@ -22,10 +23,20 @@ int main(int argc, char *argv[])
 
   csr_matrix_class csr_matrix (reader.matrix ());
 
-  resizable_gpu_memory<double> A, x, y;
+  // CPU
+  std::unique_ptr<double[]> reference_answer (new double[csr_matrix.meta.cols_count]);
+  std::unique_ptr<double[]> x (new double[csr_matrix.meta.cols_count]);
+
+  cpu_csr_spmv_single_thread_naive (csr_matrix, x.get (), reference_answer.get ());
+
+  /// GPU Reusable memory
+  resizable_gpu_memory<double> A, x_gpu, y;
   resizable_gpu_memory<unsigned int> col_ids, row_ptr;
 
-  csr_spmv (csr_matrix, A, col_ids, row_ptr, x, y);
+  /// GPU
+  {
+    csr_spmv (csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+  }
 
   return 0;
 }

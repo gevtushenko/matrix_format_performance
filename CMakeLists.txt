@@ -7,8 +7,9 @@ find_package(CUDA REQUIRED)
 add_subdirectory(external/matrix_reader)
 add_subdirectory(common)
 add_subdirectory(gpu)
+add_subdirectory(cpu)
 
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} common)
 
-target_link_libraries(${PROJECT_NAME} gpu)
+target_link_libraries(${PROJECT_NAME} gpu cpu)

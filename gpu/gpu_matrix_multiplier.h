@@ -17,6 +17,9 @@ void csr_spmv (
     resizable_gpu_memory<unsigned int> &col_ids,
     resizable_gpu_memory<unsigned int> &row_ptr,
     resizable_gpu_memory<double> &x,
-    resizable_gpu_memory<double> &y);
+    resizable_gpu_memory<double> &y,
+
+    double *reusable_vector,
+    const double *reference_y);
 
 #endif // MATRIX_FORMAT_PERFORMANCE_GPU_MATRIX_MULTIPLIER_H

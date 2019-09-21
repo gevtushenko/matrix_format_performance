@@ -37,13 +37,18 @@ __global__ void fill_vector (unsigned int n, double *vec, double value)
     vec[i] = value;
 }
 
+#include <iostream>
+
 void csr_spmv (
     const csr_matrix_class &matrix,
     resizable_gpu_memory<double> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
     resizable_gpu_memory<unsigned int> &row_ptr,
     resizable_gpu_memory<double> &x,
-    resizable_gpu_memory<double> &y)
+    resizable_gpu_memory<double> &y,
+
+    double *reusable_vector,
+    const double *reference_y)
 {
 
   auto &meta = matrix.meta;
@@ -81,5 +86,12 @@ void csr_spmv (
         static_cast<unsigned int> (meta.rows_count),
             col_ids.get (), row_ptr.get (), A.get (), x.get (), y.get ());
   }
+
+  cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
+
+  constexpr double epsilon = 1e-18;
+  for (unsigned int i = 0; i < vec_size; i++)
+    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
+      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
 }
 
