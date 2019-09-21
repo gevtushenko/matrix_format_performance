@@ -184,35 +184,34 @@ void cpu_ell_spmv_multi_thread_avx2_kernel (
     const unsigned int thread_begin,
     const unsigned int thread_end)
 {
-  for (unsigned int row = thread_begin; row < thread_end; row++)
+  unsigned int row = thread_begin;
+  for (; row < (thread_end / 4) * 4; row += 4)
   {
-    unsigned int element = 0;
-
     Vec4d vec_dot (0.0);
-    for (; element < (elements_in_rows / 4) * 4; element += 4)
-    {
-      const unsigned int element_offset_0 = row + (element + 0) * n_rows;
-      const unsigned int element_offset_1 = row + (element + 1) * n_rows;
-      const unsigned int element_offset_2 = row + (element + 2) * n_rows;
-      const unsigned int element_offset_3 = row + (element + 3) * n_rows;
 
-      Vec4d vec_data (
-          data[element_offset_0],
-          data[element_offset_1],
-          data[element_offset_2],
-          data[element_offset_3]);
+    for (unsigned int element = 0; element < elements_in_rows; element++)
+    {
+      const unsigned int element_offset = row + element * n_rows;
+
+      Vec4d vec_data;
+      vec_data.load (data + element_offset);
 
       Vec4d vec_x (
-          x[col_ids[element_offset_0]],
-          x[col_ids[element_offset_1]],
-          x[col_ids[element_offset_2]],
-          x[col_ids[element_offset_3]]);
+          x[col_ids[element_offset + 0]],
+          x[col_ids[element_offset + 1]],
+          x[col_ids[element_offset + 2]],
+          x[col_ids[element_offset + 3]]);
 
       vec_dot += vec_data * vec_x;
     }
 
-    double dot = horizontal_add (vec_dot);
-    for (; element < elements_in_rows; element++)
+    vec_dot.store (y + row);
+  }
+
+  for (; row < thread_end; row++)
+  {
+    double dot = 0;
+    for (unsigned int element = 0; element < elements_in_rows; element++)
     {
       const unsigned int element_offset = row + element * n_rows;
       dot += data[element_offset] * x[col_ids[element_offset]];
