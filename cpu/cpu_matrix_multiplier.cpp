@@ -5,6 +5,7 @@
 #include "cpu_matrix_multiplier.h"
 #include "matrix_converter.h"
 
+#include <algorithm>
 #include <vector>
 #include <chrono>
 #include <thread>
@@ -179,13 +180,16 @@ void cpu_ell_spmv_multi_thread_avx2_kernel (
     unsigned int elements_in_rows,
     const double *x,
     double *y,
-    const unsigned int *col_ids,
+    const uint64_t *col_ids,
     const double *data,
     const unsigned int thread_begin,
     const unsigned int thread_end)
 {
+  const auto vector_size = 4;
+  const auto regular_part = (thread_end / vector_size) * vector_size;
+
   unsigned int row = thread_begin;
-  for (; row < (thread_end / 4) * 4; row += 4)
+  for (; row < regular_part; row += vector_size)
   {
     Vec4d vec_dot (0.0);
 
@@ -196,11 +200,11 @@ void cpu_ell_spmv_multi_thread_avx2_kernel (
       Vec4d vec_data;
       vec_data.load (data + element_offset);
 
-      Vec4d vec_x (
-          x[col_ids[element_offset + 0]],
-          x[col_ids[element_offset + 1]],
-          x[col_ids[element_offset + 2]],
-          x[col_ids[element_offset + 3]]);
+      Vec4uq vec_cols;
+      vec_cols.load (col_ids + element_offset);
+
+      Vec4d vec_x;
+      vec_x = lookup<1024> (vec_cols, x);
 
       vec_dot += vec_data * vec_x;
     }
@@ -234,6 +238,9 @@ double cpu_ell_spmv_multi_thread_avx2 (
   unique_ptr<double[]> times (new double[threads_count]);
   vector<thread> threads;
 
+  unique_ptr<uint64_t[]> large_col_ids (new uint64_t[matrix.get_matrix_size ()]);
+  copy_n (col_ids, matrix.get_matrix_size (), large_col_ids.get ());
+
   std::atomic<unsigned int> threads_started;
   threads_started.store (0);
 
@@ -248,7 +255,7 @@ double cpu_ell_spmv_multi_thread_avx2 (
         _mm_pause ();
 
       auto begin = chrono::system_clock::now ();
-      cpu_ell_spmv_multi_thread_avx2_kernel (matrix.meta.rows_count, matrix.elements_in_rows, x, y, col_ids, data, thread_begin, thread_end);
+      cpu_ell_spmv_multi_thread_avx2_kernel (matrix.meta.rows_count, matrix.elements_in_rows, x, y, large_col_ids.get (), data, thread_begin, thread_end);
       auto end = chrono::system_clock::now ();
 
       times[thread] = chrono::duration<double> (end - begin).count ();
