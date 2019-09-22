@@ -64,14 +64,16 @@ int main(int argc, char *argv[])
     cout << "CPU Parallel: " << cpu_parallel_naive_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_time << ")" << endl;
   }
 
+  if (0)
   {
-    auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
+    auto duration = cpp_itt::create_event_duration ("cpu_ell_spmv_multi_thread_naive");
     auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_naive (*ell_matrix, x.get (), cpu_y.get ());
     cout << "CPU Parallel ELL: " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
   }
 
+  if (0)
   {
-    auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
+    auto duration = cpp_itt::create_event_duration ("cpu_ell_spmv_multi_thread_naive");
     auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_avx2 (*ell_matrix, x.get (), cpu_y.get (), reference_answer.get ());
     cout << "CPU Parallel ELL (AVX2): " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
   }
@@ -90,6 +92,11 @@ int main(int argc, char *argv[])
     }
 
     {
+      auto gpu_time = gpu_csr_vector_spmv (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      cout << "GPU CSR (vector): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+    }
+
+    {
       auto gpu_time = gpu_ell_spmv (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
       cout << "GPU ELL: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
@@ -97,11 +104,6 @@ int main(int argc, char *argv[])
     {
       auto gpu_time = gpu_coo_spmv (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       cout << "GPU COO: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
-    }
-
-    {
-      auto gpu_time = gpu_coo_spmv (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-      cout << "GPU COO (with privatization): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
   }
 

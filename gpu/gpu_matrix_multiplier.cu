@@ -56,13 +56,14 @@ double gpu_csr_spmv (
   const size_t A_size = matrix.get_matrix_size ();
   const size_t col_ids_size = matrix.meta.non_zero_count;
   const size_t row_ptr_size = matrix.meta.rows_count + 1;
-  const size_t vec_size = matrix.meta.cols_count;
+  const size_t x_size = matrix.meta.cols_count;
+  const size_t y_size = matrix.meta.rows_count;
 
   A.resize (A_size);
   col_ids.resize (col_ids_size);
   row_ptr.resize (row_ptr_size);
-  x.resize (vec_size);
-  y.resize (vec_size);
+  x.resize (x_size);
+  y.resize (y_size);
 
   cudaMemcpy (A.get (), matrix.data.get (), A_size * sizeof (double), cudaMemcpyHostToDevice);
   cudaMemcpy (col_ids.get (), matrix.columns.get (), col_ids_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
@@ -72,8 +73,8 @@ double gpu_csr_spmv (
     dim3 block_size = dim3 (512);
     dim3 grid_size {};
 
-    grid_size.x = (vec_size + block_size.x - 1) / block_size.x;
-    fill_vector<<<grid_size, block_size>>> (vec_size, x.get (), 1.0);
+    grid_size.x = (x_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (x_size, x.get (), 1.0);
   }
 
   cudaEvent_t start, stop;
@@ -96,10 +97,135 @@ double gpu_csr_spmv (
   float milliseconds = 0;
   cudaEventElapsedTime (&milliseconds, start, stop);
 
-  cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
+  cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
+
+  constexpr double epsilon = 1e-10;
+  for (unsigned int i = 0; i < y_size; i++)
+    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
+      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+
+  return milliseconds / 1000;
+}
+
+
+#define FULL_WARP_MASK 0xFFFFFFFF
+
+
+template <class T>
+__device__ T warp_reduce (T val)
+{
+  /**
+   *  For a thread at lane X in the warp, __shfl_down_sync(FULL_MASK, val, offset) gets
+   *  the value of the val variable from the thread at lane X+offset of the same warp.
+   *  The data exchange is performed between registers, and more efficient than going
+   *  through shared memory, which requires a load, a store and an extra register to
+   *  hold the address.
+   */
+  for (int offset = warpSize / 2; offset > 0; offset /= 2)
+    val += __shfl_down_sync (FULL_WARP_MASK, val, offset);
+
+  return val;
+}
+
+
+__global__ void csr_spmv_vector_kernel (
+    unsigned int n_rows,
+    const unsigned int *col_ids,
+    const unsigned int *row_ptr,
+    const double *data,
+    const double *x,
+    double *y)
+{
+  const unsigned int thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned int warp_id = thread_id / 32;
+  const unsigned int lane = thread_id % 32;
+
+  const unsigned int row = warp_id; ///< One warp per row
+
+  double dot = 0;
+  if (row < n_rows)
+  {
+    const unsigned int row_start = row_ptr[row];
+    const unsigned int row_end = row_ptr[row + 1];
+
+    for (unsigned int element = row_start + lane; element < row_end; element += 32)
+      dot += data[element] * x[col_ids[element]];
+  }
+
+  dot = warp_reduce (dot);
+
+  if (lane == 0 && row < n_rows)
+  {
+    y[row] = dot;
+  }
+}
+
+double gpu_csr_vector_spmv (
+    const csr_matrix_class &matrix,
+    resizable_gpu_memory<double> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<unsigned int> &row_ptr,
+    resizable_gpu_memory<double> &x,
+    resizable_gpu_memory<double> &y,
+
+    double *reusable_vector,
+    const double *reference_y)
+{
+
+  auto &meta = matrix.meta;
+
+  const size_t A_size = matrix.get_matrix_size ();
+  const size_t col_ids_size = matrix.meta.non_zero_count;
+  const size_t row_ptr_size = matrix.meta.rows_count + 1;
+  const size_t x_size = matrix.meta.cols_count;
+  const size_t y_size = matrix.meta.rows_count;
+
+  A.resize (A_size);
+  col_ids.resize (col_ids_size);
+  row_ptr.resize (row_ptr_size);
+  x.resize (x_size);
+  y.resize (y_size);
+
+  cudaMemcpy (A.get (), matrix.data.get (), A_size * sizeof (double), cudaMemcpyHostToDevice);
+  cudaMemcpy (col_ids.get (), matrix.columns.get (), col_ids_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
+  cudaMemcpy (row_ptr.get (), matrix.row_ptr.get (), row_ptr_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
+
+  {
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    grid_size.x = (x_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (x_size, x.get (), 1.0);
+
+    grid_size.x = (y_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (y_size, y.get (), 24.0);
+  }
+
+  cudaEvent_t start, stop;
+  cudaEventCreate (&start);
+  cudaEventCreate (&stop);
+
+  cudaEventRecord (start);
+  {
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    const unsigned int warp_size = 32; /// One warp per row
+    grid_size.x = (warp_size * meta.rows_count + block_size.x - 1) / block_size.x;
+
+    csr_spmv_vector_kernel<<<grid_size, block_size>>> (
+        meta.rows_count, col_ids.get (), row_ptr.get (), A.get (), x.get (), y.get ());
+  }
+  cudaEventRecord (stop);
+  cudaEventSynchronize (stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime (&milliseconds, start, stop);
+
+  cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
   constexpr double epsilon = 1e-14;
-  for (unsigned int i = 0; i < vec_size; i++)
+  for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
 
@@ -144,12 +270,13 @@ double gpu_ell_spmv (
 
   const size_t A_size = matrix.get_matrix_size ();
   const size_t col_ids_size = A_size;
-  const size_t vec_size = matrix.meta.cols_count;
+  const size_t x_size = matrix.meta.cols_count;
+  const size_t y_size = matrix.meta.cols_count;
 
   A.resize (A_size);
   col_ids.resize (col_ids_size);
-  x.resize (vec_size);
-  y.resize (vec_size);
+  x.resize (x_size);
+  y.resize (y_size);
 
   cudaMemcpy (A.get (), matrix.data.get (), A_size * sizeof (double), cudaMemcpyHostToDevice);
   cudaMemcpy (col_ids.get (), matrix.columns.get (), col_ids_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
@@ -158,9 +285,11 @@ double gpu_ell_spmv (
     dim3 block_size = dim3 (512);
     dim3 grid_size {};
 
-    grid_size.x = (vec_size + block_size.x - 1) / block_size.x;
-    fill_vector<<<grid_size, block_size>>> (vec_size, x.get (), 1.0);
-    fill_vector<<<grid_size, block_size>>> (vec_size, y.get (), 0.0);
+    grid_size.x = (x_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (x_size, x.get (), 1.0);
+
+    grid_size.x = (y_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (y_size, y.get (), 0.0);
   }
 
   cudaEvent_t start, stop;
@@ -183,10 +312,10 @@ double gpu_ell_spmv (
   float milliseconds = 0;
   cudaEventElapsedTime (&milliseconds, start, stop);
 
-  cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
+  cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
   constexpr double epsilon = 1e-14;
-  for (unsigned int i = 0; i < vec_size; i++)
+  for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
 
@@ -226,13 +355,14 @@ double gpu_coo_spmv (
   auto &meta = matrix.meta;
 
   const size_t n_elements = matrix.get_matrix_size ();
-  const size_t vec_size = matrix.meta.cols_count;
+  const size_t x_size = matrix.meta.cols_count;
+  const size_t y_size = matrix.meta.cols_count;
 
   A.resize (n_elements);
   col_ids.resize (n_elements);
   row_ids.resize (n_elements);
-  x.resize (vec_size);
-  y.resize (vec_size);
+  x.resize (x_size);
+  y.resize (y_size);
 
   cudaMemcpy (A.get (), matrix.data.get (), n_elements * sizeof (double), cudaMemcpyHostToDevice);
   cudaMemcpy (col_ids.get (), matrix.cols.get (), n_elements * sizeof (unsigned int), cudaMemcpyHostToDevice);
@@ -242,9 +372,11 @@ double gpu_coo_spmv (
     dim3 block_size = dim3 (512);
     dim3 grid_size {};
 
-    grid_size.x = (vec_size + block_size.x - 1) / block_size.x;
-    fill_vector<<<grid_size, block_size>>> (vec_size, x.get (), 1.0);
-    fill_vector<<<grid_size, block_size>>> (vec_size, y.get (), 0.0);
+    grid_size.x = (x_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (x_size, x.get (), 1.0);
+
+    grid_size.x = (y_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (y_size, y.get (), 0.0);
   }
 
   cudaEvent_t start, stop;
@@ -267,10 +399,10 @@ double gpu_coo_spmv (
   float milliseconds = 0;
   cudaEventElapsedTime (&milliseconds, start, stop);
 
-  cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
+  cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
   constexpr double epsilon = 1e-14;
-  for (unsigned int i = 0; i < vec_size; i++)
+  for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
 

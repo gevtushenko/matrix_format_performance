@@ -22,6 +22,17 @@ double gpu_csr_spmv (
     double *reusable_vector,
     const double *reference_y);
 
+double gpu_csr_vector_spmv (
+    const csr_matrix_class &matrix,
+    resizable_gpu_memory<double> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<unsigned int> &row_ptr,
+    resizable_gpu_memory<double> &x,
+    resizable_gpu_memory<double> &y,
+
+    double *reusable_vector,
+    const double *reference_y);
+
 double gpu_ell_spmv (
     const ell_matrix_class &matrix,
     resizable_gpu_memory<double> &A,
