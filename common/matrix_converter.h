@@ -42,4 +42,20 @@ public:
   unsigned int elements_in_rows = 0;
 };
 
+class coo_matrix_class
+{
+public:
+  coo_matrix_class () = delete;
+  explicit coo_matrix_class (csr_matrix_class &matrix);
+
+  const matrix_market::matrix_class::matrix_meta meta;
+
+  size_t get_matrix_size () const;
+
+public:
+  std::unique_ptr<double[]> data;
+  std::unique_ptr<unsigned int[]> cols;
+  std::unique_ptr<unsigned int[]> rows;
+};
+
 #endif // MATRIX_FORMAT_PERFORMANCE_MATRIX_CONVERTER_H

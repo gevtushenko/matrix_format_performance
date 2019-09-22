@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
 
   unique_ptr<csr_matrix_class> csr_matrix;
   unique_ptr<ell_matrix_class> ell_matrix;
+  unique_ptr<coo_matrix_class> coo_matrix;
 
   {
     cpp_itt::quiet_region region;
@@ -37,6 +38,9 @@ int main(int argc, char *argv[])
 
     ell_matrix = make_unique<ell_matrix_class> (*csr_matrix);
     cout << "Complete converting to ELL" << endl;
+
+    coo_matrix = make_unique<coo_matrix_class> (*csr_matrix);
+    cout << "Complete converting to COO" << endl;
   }
 
   // CPU
@@ -88,6 +92,11 @@ int main(int argc, char *argv[])
     {
       auto gpu_time = gpu_ell_spmv (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
       cout << "GPU ELL: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+    }
+
+    {
+      auto gpu_time = gpu_coo_spmv (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      cout << "GPU COO: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
   }
 

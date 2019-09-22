@@ -193,3 +193,86 @@ double gpu_ell_spmv (
   return milliseconds / 1000;
 }
 
+
+__global__ void coo_spmv_kernel (
+    unsigned int n_elements,
+    const unsigned int *col_ids,
+    const unsigned int *row_ids,
+    const double *data,
+    const double *x,
+    double *y)
+{
+  unsigned int element = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (element < n_elements)
+  {
+    const double dot = data[element] * x[col_ids[element]];
+    atomicAdd (y + row_ids[element], dot);
+  }
+}
+
+double gpu_coo_spmv (
+    const coo_matrix_class &matrix,
+    resizable_gpu_memory<double> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<unsigned int> &row_ids,
+    resizable_gpu_memory<double> &x,
+    resizable_gpu_memory<double> &y,
+
+    double *reusable_vector,
+    const double *reference_y)
+{
+
+  auto &meta = matrix.meta;
+
+  const size_t n_elements = matrix.get_matrix_size ();
+  const size_t vec_size = matrix.meta.cols_count;
+
+  A.resize (n_elements);
+  col_ids.resize (n_elements);
+  row_ids.resize (n_elements);
+  x.resize (vec_size);
+  y.resize (vec_size);
+
+  cudaMemcpy (A.get (), matrix.data.get (), n_elements * sizeof (double), cudaMemcpyHostToDevice);
+  cudaMemcpy (col_ids.get (), matrix.cols.get (), n_elements * sizeof (unsigned int), cudaMemcpyHostToDevice);
+  cudaMemcpy (row_ids.get (), matrix.rows.get (), n_elements * sizeof (unsigned int), cudaMemcpyHostToDevice);
+
+  {
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    grid_size.x = (vec_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (vec_size, x.get (), 1.0);
+    fill_vector<<<grid_size, block_size>>> (vec_size, y.get (), 0.0);
+  }
+
+  cudaEvent_t start, stop;
+  cudaEventCreate (&start);
+  cudaEventCreate (&stop);
+
+  cudaEventRecord (start);
+  {
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    grid_size.x = (n_elements + block_size.x - 1) / block_size.x;
+
+    coo_spmv_kernel<<<grid_size, block_size>>> (
+        n_elements, col_ids.get (), row_ids.get (), A.get (), x.get (), y.get ());
+  }
+  cudaEventRecord (stop);
+  cudaEventSynchronize (stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime (&milliseconds, start, stop);
+
+  cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
+
+  constexpr double epsilon = 1e-14;
+  for (unsigned int i = 0; i < vec_size; i++)
+    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
+      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+
+  return milliseconds / 1000;
+}

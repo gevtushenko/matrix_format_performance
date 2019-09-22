@@ -105,3 +105,38 @@ size_t ell_matrix_class::get_matrix_size () const
 {
   return meta.rows_count * elements_in_rows;
 }
+
+coo_matrix_class::coo_matrix_class(csr_matrix_class &matrix)
+  : meta (matrix.meta)
+{
+  if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
+    throw std::runtime_error ("Only general matrices are supported");
+
+  data.reset (new double [meta.non_zero_count]);
+  cols.reset (new unsigned int[meta.non_zero_count]);
+  rows.reset (new unsigned int[meta.non_zero_count]);
+
+  const auto row_ptr = matrix.row_ptr.get ();
+  const auto col_ptr = matrix.columns.get ();
+
+  unsigned int id = 0;
+  for (unsigned int row = 0; row < meta.rows_count; row++)
+  {
+    const auto start = row_ptr[row];
+    const auto end = row_ptr[row + 1];
+
+    for (auto element = start; element < end; element++)
+    {
+      data[id] = matrix.data[element];
+      cols[id] = col_ptr[element];
+      rows[id] = row;
+      id++;
+    }
+  }
+}
+
+size_t coo_matrix_class::get_matrix_size () const
+{
+  return meta.non_zero_count;
+}
+
