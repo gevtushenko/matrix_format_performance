@@ -7,6 +7,8 @@
 
 #include <cuda_runtime.h>
 
+constexpr double epsilon = 1e-2;
+
 __global__ void csr_spmv_kernel (
     unsigned int n_rows,
     const unsigned int *col_ids,
@@ -99,7 +101,6 @@ double gpu_csr_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
-  constexpr double epsilon = 1e-10;
   for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
@@ -224,7 +225,6 @@ double gpu_csr_vector_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
-  constexpr double epsilon = 1e-14;
   for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
@@ -314,7 +314,6 @@ double gpu_ell_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
-  constexpr double epsilon = 1e-14;
   for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
@@ -401,7 +400,6 @@ double gpu_coo_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
-  constexpr double epsilon = 1e-14;
   for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
@@ -561,7 +559,6 @@ double gpu_coo_privatization_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), vec_size * sizeof (double), cudaMemcpyDeviceToHost);
 
-  constexpr double epsilon = 1e-14;
   for (unsigned int i = 0; i < vec_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";

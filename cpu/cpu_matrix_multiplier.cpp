@@ -266,7 +266,7 @@ double cpu_ell_spmv_multi_thread_avx2 (
   for (auto &thread: threads)
     thread.join ();
 
-  constexpr double epsilon = 1e-14;
+  constexpr double epsilon = 1e-12;
   for (unsigned int i = 0; i < matrix.meta.rows_count; i++)
     if (std::abs (y[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << y[i] << " != " << reference_y[i] << ")\n";
