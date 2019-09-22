@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
 
   // CPU
   std::unique_ptr<double[]> reference_answer (new double[csr_matrix->meta.cols_count]);
+  std::unique_ptr<double[]> cpu_y (new double[csr_matrix->meta.cols_count]);
   std::unique_ptr<double[]> x (new double[csr_matrix->meta.cols_count]);
 
   double cpu_naive_time {};
@@ -55,19 +56,19 @@ int main(int argc, char *argv[])
 
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
-    cpu_parallel_naive_time = cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), reference_answer.get ());
+    cpu_parallel_naive_time = cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ());
     cout << "CPU Parallel: " << cpu_parallel_naive_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_time << ")" << endl;
   }
 
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
-    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_naive (*ell_matrix, x.get (), reference_answer.get ());
+    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_naive (*ell_matrix, x.get (), cpu_y.get ());
     cout << "CPU Parallel ELL: " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
   }
 
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
-    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_avx2 (*ell_matrix, x.get (), reference_answer.get ());
+    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_avx2 (*ell_matrix, x.get (), cpu_y.get (), reference_answer.get ());
     cout << "CPU Parallel ELL (AVX2): " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
   }
 

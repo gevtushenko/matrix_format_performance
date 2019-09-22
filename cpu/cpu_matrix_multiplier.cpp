@@ -6,6 +6,7 @@
 #include "matrix_converter.h"
 
 #include <algorithm>
+#include <iostream>
 #include <vector>
 #include <chrono>
 #include <thread>
@@ -227,7 +228,8 @@ void cpu_ell_spmv_multi_thread_avx2_kernel (
 double cpu_ell_spmv_multi_thread_avx2 (
     const ell_matrix_class &matrix,
     double *x,
-    double *y)
+    double *y,
+    const double *reference_y)
 {
   fill_n (x, matrix.meta.cols_count, 1.0);
 
@@ -263,6 +265,11 @@ double cpu_ell_spmv_multi_thread_avx2 (
 
   for (auto &thread: threads)
     thread.join ();
+
+  constexpr double epsilon = 1e-14;
+  for (unsigned int i = 0; i < matrix.meta.cols_count; i++)
+    if (std::abs (y[i] - reference_y[i]) > epsilon)
+      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << y[i] << " != " << reference_y[i] << ")\n";
 
   double max_time = 0.0;
   for (unsigned int i = 0; i < threads_count; i++)

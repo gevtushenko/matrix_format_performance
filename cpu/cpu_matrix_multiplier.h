@@ -27,6 +27,7 @@ double cpu_ell_spmv_multi_thread_naive (
 double cpu_ell_spmv_multi_thread_avx2 (
     const ell_matrix_class &matrix,
     double *x,
-    double *y);
+    double *y,
+    const double *reference_y);
 
 #endif // MATRIX_FORMAT_PERFORMANCE_CPU_MATRIX_MULTIPLIER_H
