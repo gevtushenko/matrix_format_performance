@@ -30,6 +30,7 @@ class ell_matrix_class
 public:
   ell_matrix_class () = delete;
   explicit ell_matrix_class (csr_matrix_class &matrix);
+  ell_matrix_class (csr_matrix_class &matrix, unsigned int elements_in_row_arg);
 
   const matrix_market::matrix_class::matrix_meta meta;
 
@@ -47,6 +48,7 @@ class coo_matrix_class
 public:
   coo_matrix_class () = delete;
   explicit coo_matrix_class (csr_matrix_class &matrix);
+  coo_matrix_class (csr_matrix_class &matrix, unsigned int element_start);
 
   const matrix_market::matrix_class::matrix_meta meta;
 
@@ -56,6 +58,21 @@ public:
   std::unique_ptr<double[]> data;
   std::unique_ptr<unsigned int[]> cols;
   std::unique_ptr<unsigned int[]> rows;
+
+private:
+  size_t elements_count {};
+};
+
+class hybrid_matrix_class
+{
+public:
+  hybrid_matrix_class () = delete;
+  explicit hybrid_matrix_class (csr_matrix_class &matrix);
+
+  const matrix_market::matrix_class::matrix_meta meta;
+
+  std::unique_ptr<ell_matrix_class> ell_matrix;
+  std::unique_ptr<coo_matrix_class> coo_matrix;
 };
 
 #endif // MATRIX_FORMAT_PERFORMANCE_MATRIX_CONVERTER_H
