@@ -106,12 +106,19 @@ int main(int argc, char *argv[])
       cout << "GPU COO: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
 
+    resizable_gpu_memory<double> A_coo;
+    resizable_gpu_memory<unsigned int> col_ids_coo;
+
+    hybrid_matrix_class hybrid_matrix (*csr_matrix);
+
     {
-      resizable_gpu_memory<double> A_coo;
-      resizable_gpu_memory<unsigned int> col_ids_coo;
-      hybrid_matrix_class hybrid_matrix (*csr_matrix);
       auto gpu_time = gpu_hybrid_spmv (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       cout << "GPU HYBRID: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+    }
+
+    {
+      auto gpu_time = gpu_hybrid_atomic_spmv (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      cout << "GPU HYBRID (atomic): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
   }
 
