@@ -125,7 +125,7 @@ ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix, unsigned int eleme
   const auto row_ptr = matrix.row_ptr.get ();
   const auto col_ptr = matrix.columns.get ();
 
-  const unsigned int elements_count = elements_in_rows * meta.rows_count;
+  const unsigned int elements_count = get_matrix_size ();
   data.reset (new double [elements_count]);
   columns.reset (new unsigned int[elements_count]);
 
@@ -193,7 +193,7 @@ coo_matrix_class::coo_matrix_class (csr_matrix_class &matrix, unsigned int eleme
     const auto end = row_ptr[row + 1];
 
     for (auto element = start; element < end; element++)
-      if (element >= element_start)
+      if (element - start >= element_start)
       elements_count++;
   }
 
@@ -232,7 +232,6 @@ hybrid_matrix_class::hybrid_matrix_class (csr_matrix_class &matrix)
     throw std::runtime_error ("Only general matrices are supported");
 
   const auto row_ptr = matrix.row_ptr.get ();
-  const auto col_ptr = matrix.columns.get ();
 
   auto [_1, _2, avg_elements] = get_rows_statistics (meta, row_ptr);
 
