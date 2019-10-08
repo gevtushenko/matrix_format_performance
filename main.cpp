@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
   // CPU
   std::unique_ptr<double[]> reference_answer (new double[csr_matrix->meta.cols_count]);
-  std::unique_ptr<double[]> cpu_y (new double[csr_matrix->meta.cols_count]);
+  std::unique_ptr<double[]> cpu_y (new double[csr_matrix->meta.rows_count]);
   std::unique_ptr<double[]> x (new double[csr_matrix->meta.cols_count]);
 
   double cpu_naive_time {};
@@ -119,6 +119,12 @@ int main(int argc, char *argv[])
     {
       auto gpu_time = gpu_hybrid_atomic_spmv (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       cout << "GPU HYBRID (atomic): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+    }
+
+    if (0)
+    {
+      auto gpu_time = gpu_hybrid_cpu_coo_spmv (hybrid_matrix, A, col_ids, x_gpu, y, cpu_y.get (), x.get (), reference_answer.get ());
+      cout << "GPU HYBRID (CPU COO): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
   }
 

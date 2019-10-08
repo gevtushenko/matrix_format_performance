@@ -707,7 +707,7 @@ __global__ void hybrid_spmv_kernel (
     atomicAdd (y + row, dot);
   }
 
-  for (unsigned int element = idx; element < n_elements; element += n_rows)
+  for (unsigned int element = idx; element < n_elements; element += blockDim.x * gridDim.x)
   {
     const double dot = coo_data[element] * x[col_ids[element]];
     atomicAdd (y + row_ids[element], dot);
@@ -810,4 +810,90 @@ double gpu_hybrid_atomic_spmv (
   }
 
   return milliseconds / 1000;
+}
+
+#include <thread>
+#include <vector>
+#include <atomic>
+#include <chrono>
+#include <immintrin.h>
+
+double gpu_hybrid_cpu_coo_spmv (
+    const hybrid_matrix_class &matrix,
+    resizable_gpu_memory<double> &A_ell,
+    resizable_gpu_memory<unsigned int> &ell_col_ids,
+    resizable_gpu_memory<double> &x,
+    resizable_gpu_memory<double> &y,
+
+    double *cpu_y,
+    double *reusable_vector,
+    const double *reference_y)
+{
+  using namespace std;
+  auto &meta = matrix.meta;
+
+  const size_t A_size = matrix.ell_matrix->get_matrix_size ();
+  const size_t col_ids_size = A_size;
+  const size_t x_size = matrix.meta.cols_count;
+  const size_t y_size = matrix.meta.rows_count;
+
+  A_ell.resize (A_size);
+  ell_col_ids.resize (col_ids_size);
+  x.resize (x_size);
+  y.resize (y_size);
+
+  std::unique_ptr<double[]> cpu_x (new double[x_size]);
+  std::fill_n (cpu_x.get (), x_size, 1.0);
+
+  cudaMemcpy (A_ell.get (), matrix.ell_matrix->data.get (), A_size * sizeof (double), cudaMemcpyHostToDevice);
+  cudaMemcpy (ell_col_ids.get (), matrix.ell_matrix->columns.get (), col_ids_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
+
+  {
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    grid_size.x = (x_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (x_size, x.get (), 1.0);
+
+    grid_size.x = (y_size + block_size.x - 1) / block_size.x;
+    fill_vector<<<grid_size, block_size>>> (y_size, y.get (), 0.0);
+  }
+
+  auto begin = chrono::system_clock::now ();
+
+  /// ELL Part
+  {
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    grid_size.x = (meta.rows_count + block_size.x - 1) / block_size.x;
+
+    ell_spmv_kernel<<<grid_size, block_size>>> (
+        meta.rows_count, matrix.ell_matrix->elements_in_rows, ell_col_ids.get (), A_ell.get (), x.get (), y.get ());
+  }
+
+  /// COO Part
+  {
+    const auto coo_col_ids = matrix.coo_matrix->cols.get ();
+    const auto coo_row_ids = matrix.coo_matrix->rows.get ();
+    const auto coo_data = matrix.coo_matrix->data.get ();
+
+    for (unsigned int element = 0; element < matrix.coo_matrix->get_matrix_size (); element++)
+      cpu_y[coo_row_ids[element]] = coo_data[element] * cpu_x[coo_col_ids[element]];
+
+    cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
+
+    for (unsigned int row = 0; row < y_size; row++)
+    {
+      reusable_vector[row] += cpu_y[row];
+    }
+  }
+
+  auto end = chrono::system_clock::now ();
+
+  for (unsigned int i = 0; i < y_size; i++)
+    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
+      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+
+  return chrono::duration<double> (end - begin).count ();
 }

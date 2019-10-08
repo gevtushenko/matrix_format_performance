@@ -91,4 +91,15 @@ double gpu_hybrid_atomic_spmv (
     double *reusable_vector,
     const double *reference_y);
 
+double gpu_hybrid_cpu_coo_spmv (
+    const hybrid_matrix_class &matrix,
+    resizable_gpu_memory<double> &A_ell,
+    resizable_gpu_memory<unsigned int> &ell_col_ids,
+    resizable_gpu_memory<double> &x,
+    resizable_gpu_memory<double> &y,
+
+    double *cpu_y,
+    double *reusable_vector,
+    const double *reference_y);
+
 #endif // MATRIX_FORMAT_PERFORMANCE_GPU_MATRIX_MULTIPLIER_H
