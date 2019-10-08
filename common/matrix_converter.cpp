@@ -209,7 +209,7 @@ coo_matrix_class::coo_matrix_class (csr_matrix_class &matrix, unsigned int eleme
 
     for (auto element = start; element < end; element++)
     {
-      if (element > element_start)
+      if (element - start >= element_start)
       {
         data[id] = matrix.data[element];
         cols[id] = col_ptr[element];
