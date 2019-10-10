@@ -111,19 +111,25 @@ int main(int argc, char *argv[])
 
     hybrid_matrix_class hybrid_matrix (*csr_matrix);
 
+    for (double percent = 0.0; percent <= 1.0; percent += 0.35)
     {
-      auto gpu_time = gpu_hybrid_spmv (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-      cout << "GPU HYBRID: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
-    }
+      cout << "\n";
+      hybrid_matrix.reallocate (*csr_matrix, percent);
 
-    {
-      auto gpu_time = gpu_hybrid_atomic_spmv (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-      cout << "GPU HYBRID (atomic): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
-    }
+      {
+        auto gpu_time = gpu_hybrid_spmv (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+        cout << "GPU HYBRID (" << percent << "): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+      }
 
-    {
-      auto gpu_time = gpu_hybrid_cpu_coo_spmv (hybrid_matrix, A, col_ids, x_gpu, y, cpu_y.get (), x.get (), reference_answer.get ());
-      cout << "GPU HYBRID (CPU COO): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+      {
+        auto gpu_time = gpu_hybrid_atomic_spmv (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+        cout << "GPU HYBRID (atomic, percent " << percent << "): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+      }
+
+      {
+        auto gpu_time = gpu_hybrid_cpu_coo_spmv (hybrid_matrix, A, col_ids, x_gpu, y, cpu_y.get (), x.get (), reference_answer.get ());
+        cout << "GPU HYBRID (CPU COO, percent " << percent << "): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
+      }
     }
   }
 
