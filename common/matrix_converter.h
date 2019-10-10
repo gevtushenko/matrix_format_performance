@@ -69,6 +69,8 @@ public:
   hybrid_matrix_class () = delete;
   explicit hybrid_matrix_class (csr_matrix_class &matrix);
 
+  void reallocate (csr_matrix_class &matrix, double percent);
+
   const matrix_market::matrix_class::matrix_meta meta;
 
   std::unique_ptr<ell_matrix_class> ell_matrix;

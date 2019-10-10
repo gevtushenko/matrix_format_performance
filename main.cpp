@@ -121,7 +121,6 @@ int main(int argc, char *argv[])
       cout << "GPU HYBRID (atomic): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
 
-    if (0)
     {
       auto gpu_time = gpu_hybrid_cpu_coo_spmv (hybrid_matrix, A, col_ids, x_gpu, y, cpu_y.get (), x.get (), reference_answer.get ());
       cout << "GPU HYBRID (CPU COO): " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;

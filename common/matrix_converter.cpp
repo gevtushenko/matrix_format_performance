@@ -222,7 +222,7 @@ coo_matrix_class::coo_matrix_class (csr_matrix_class &matrix, unsigned int eleme
 
 size_t coo_matrix_class::get_matrix_size () const
 {
-  return meta.non_zero_count;
+  return elements_count;
 }
 
 hybrid_matrix_class::hybrid_matrix_class (csr_matrix_class &matrix)
@@ -231,10 +231,18 @@ hybrid_matrix_class::hybrid_matrix_class (csr_matrix_class &matrix)
   if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
     throw std::runtime_error ("Only general matrices are supported");
 
+  reallocate (matrix, 0.0);
+}
+
+void hybrid_matrix_class::reallocate (csr_matrix_class &matrix, double percent)
+{
   const auto row_ptr = matrix.row_ptr.get ();
 
-  auto [_1, _2, avg_elements] = get_rows_statistics (meta, row_ptr);
+  auto [_1, max_elements, avg_elements] = get_rows_statistics (meta, row_ptr);
+  const unsigned int elements_per_ell = avg_elements + (max_elements - avg_elements) * percent;
 
-  ell_matrix = std::make_unique<ell_matrix_class> (matrix, avg_elements); /// Don't use more than avg elements in an ELL row
-  coo_matrix = std::make_unique<coo_matrix_class> (matrix, avg_elements); /// Don't use elements before avg elements in an COO row
+  ell_matrix = std::make_unique<ell_matrix_class> (matrix, elements_per_ell); /// Don't use more than avg elements in an ELL row
+  coo_matrix = std::make_unique<coo_matrix_class> (matrix, elements_per_ell); /// Don't use elements before avg elements in an COO row
+
+  std::cout << "ELL elements: " << elements_per_ell << "; COO/ELL Ratio: " << static_cast<double> (coo_matrix->get_matrix_size ()) / ell_matrix->get_matrix_size () << std::endl;
 }

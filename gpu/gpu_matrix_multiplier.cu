@@ -844,6 +844,7 @@ double gpu_hybrid_cpu_coo_spmv (
 
   std::unique_ptr<double[]> cpu_x (new double[x_size]);
   std::fill_n (cpu_x.get (), x_size, 1.0);
+  std::fill_n (cpu_y, y_size, 0.0);
 
   cudaMemcpy (A_ell.get (), matrix.ell_matrix->data.get (), A_size * sizeof (double), cudaMemcpyHostToDevice);
   cudaMemcpy (ell_col_ids.get (), matrix.ell_matrix->columns.get (), col_ids_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
@@ -858,6 +859,8 @@ double gpu_hybrid_cpu_coo_spmv (
     grid_size.x = (y_size + block_size.x - 1) / block_size.x;
     fill_vector<<<grid_size, block_size>>> (y_size, y.get (), 0.0);
   }
+
+  cudaDeviceSynchronize ();
 
   auto begin = chrono::system_clock::now ();
 
@@ -879,7 +882,7 @@ double gpu_hybrid_cpu_coo_spmv (
     const auto coo_data = matrix.coo_matrix->data.get ();
 
     for (unsigned int element = 0; element < matrix.coo_matrix->get_matrix_size (); element++)
-      cpu_y[coo_row_ids[element]] = coo_data[element] * cpu_x[coo_col_ids[element]];
+      cpu_y[coo_row_ids[element]] += coo_data[element] * cpu_x[coo_col_ids[element]];
 
     cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
