@@ -812,11 +812,17 @@ double gpu_hybrid_atomic_spmv (
   return milliseconds / 1000;
 }
 
-#include <thread>
-#include <vector>
-#include <atomic>
-#include <chrono>
-#include <immintrin.h>
+/// Perform y = y + x
+__global__ void vec_add (
+  unsigned int n_rows,
+  const double *x,
+  double *y)
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx < n_rows)
+    y[idx] += x[idx];
+}
 
 double gpu_hybrid_cpu_coo_spmv (
     const hybrid_matrix_class &matrix,
@@ -824,6 +830,8 @@ double gpu_hybrid_cpu_coo_spmv (
     resizable_gpu_memory<unsigned int> &ell_col_ids,
     resizable_gpu_memory<double> &x,
     resizable_gpu_memory<double> &y,
+
+    resizable_gpu_memory<double> &tmp,
 
     double *cpu_y,
     double *reusable_vector,
@@ -841,6 +849,7 @@ double gpu_hybrid_cpu_coo_spmv (
   ell_col_ids.resize (col_ids_size);
   x.resize (x_size);
   y.resize (y_size);
+  tmp.resize (y_size);
 
   std::unique_ptr<double[]> cpu_x (new double[x_size]);
   std::fill_n (cpu_x.get (), x_size, 1.0);
@@ -860,9 +869,15 @@ double gpu_hybrid_cpu_coo_spmv (
     fill_vector<<<grid_size, block_size>>> (y_size, y.get (), 0.0);
   }
 
-  cudaDeviceSynchronize ();
+  cudaStream_t ell_mult_stream, coo_send_stream;
+  cudaStreamCreate (&ell_mult_stream);
+  cudaStreamCreate (&coo_send_stream);
 
-  auto begin = chrono::system_clock::now ();
+  cudaEvent_t start, stop;
+  cudaEventCreate (&start);
+  cudaEventCreate (&stop);
+
+  cudaEventRecord (start);
 
   /// ELL Part
   {
@@ -871,7 +886,7 @@ double gpu_hybrid_cpu_coo_spmv (
 
     grid_size.x = (meta.rows_count + block_size.x - 1) / block_size.x;
 
-    ell_spmv_kernel<<<grid_size, block_size>>> (
+    ell_spmv_kernel<<<grid_size, block_size, 0, ell_mult_stream>>> (
         meta.rows_count, matrix.ell_matrix->elements_in_rows, ell_col_ids.get (), A_ell.get (), x.get (), y.get ());
   }
 
@@ -884,19 +899,30 @@ double gpu_hybrid_cpu_coo_spmv (
     for (unsigned int element = 0; element < matrix.coo_matrix->get_matrix_size (); element++)
       cpu_y[coo_row_ids[element]] += coo_data[element] * cpu_x[coo_col_ids[element]];
 
-    cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync (tmp.get (), cpu_y, y_size * sizeof (double), cudaMemcpyHostToDevice, coo_send_stream);
 
-    for (unsigned int row = 0; row < y_size; row++)
-    {
-      reusable_vector[row] += cpu_y[row];
-    }
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    grid_size.x = (y_size + block_size.x - 1) / block_size.x;
+
+    vec_add<<<grid_size, block_size>>> (y_size, tmp.get (), y.get ());
   }
 
-  auto end = chrono::system_clock::now ();
+  cudaEventRecord (stop);
+  cudaEventSynchronize (stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime (&milliseconds, start, stop);
+
+  cudaStreamDestroy (ell_mult_stream);
+  cudaStreamDestroy (coo_send_stream);
+
+  cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (double), cudaMemcpyDeviceToHost);
 
   for (unsigned int i = 0; i < y_size; i++)
     if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
       std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
 
-  return chrono::duration<double> (end - begin).count ();
+  return milliseconds / 1000;
 }

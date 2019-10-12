@@ -244,5 +244,7 @@ void hybrid_matrix_class::reallocate (csr_matrix_class &matrix, double percent)
   ell_matrix = std::make_unique<ell_matrix_class> (matrix, elements_per_ell); /// Don't use more than avg elements in an ELL row
   coo_matrix = std::make_unique<coo_matrix_class> (matrix, elements_per_ell); /// Don't use elements before avg elements in an COO row
 
-  std::cout << "ELL elements: " << elements_per_ell << "; COO/ELL Ratio: " << static_cast<double> (coo_matrix->get_matrix_size ()) / ell_matrix->get_matrix_size () << std::endl;
+  std::cout << "ELL elements per row: " << elements_per_ell << "; "
+            << "COO elements: " << coo_matrix->get_matrix_size () << "; ELL elements: " << ell_matrix->get_matrix_size () << "; "
+            << "COO/ELL Ratio: " << static_cast<double> (coo_matrix->get_matrix_size ()) / ell_matrix->get_matrix_size () << std::endl;
 }

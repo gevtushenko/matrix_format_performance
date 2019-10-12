@@ -98,6 +98,8 @@ double gpu_hybrid_cpu_coo_spmv (
     resizable_gpu_memory<double> &x,
     resizable_gpu_memory<double> &y,
 
+    resizable_gpu_memory<double> &tmp,
+
     double *cpu_y,
     double *reusable_vector,
     const double *reference_y);
