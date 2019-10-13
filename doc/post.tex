@@ -1,6 +1,7 @@
 \documentclass{article}
 
 \usepackage{tikz}
+\usepackage{ifthen}
 \usepackage{caption}
 
 
@@ -63,6 +64,46 @@ Here is the text of your introduction.
     }
   \end{tikzpicture}
   \caption{A simple finite element mesh model}
+\end{figure}
+
+\pgfsetplotmarksize{0.05cm}
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \pgfmathsetmacro{\size}{4}
+    \pgfmathsetmacro{\es}{\size/16}
+    \pgfmathsetmacro{\pd}{\es/6}
+    \pgfmathsetmacro{\ebs}{\es - 2 * \pd}
+    \draw (0,0) rectangle ++(\size,\size);
+
+    % Diagonal part
+    \foreach \x in {0,...,15}
+      \foreach \y in {0,...,15}
+       \ifthenelse{\x=\y}{\fill [gray] (\es * \x + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs)}{};
+
+    % Left part
+    \foreach \y in {1,...,15}
+     \fill [gray] (\es * \y - \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+    % Right part
+    \foreach \y in {0,...,14}
+     \fill [gray] (\es * \y + \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+    % Bottom part
+    \foreach \y in {4,...,15}
+     \fill [gray] (\es * \y - 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+    % Top part
+    \foreach \y in {0,...,11}
+     \fill [gray] (\es * \y + 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+    % Diag part
+    \foreach \y in {0,...,10}
+     \fill [gray] (\es * \y + 5 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+    \foreach \y in {5,...,15}
+     \fill [gray] (\es * \y - 5 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+        
+  \end{tikzpicture}
 \end{figure}
 
 \section{Data Structures for Sparse Matrices}
