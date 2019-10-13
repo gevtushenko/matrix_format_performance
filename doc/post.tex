@@ -3,6 +3,7 @@
 \usepackage{tikz}
 \usepackage{ifthen}
 \usepackage{caption}
+\usepackage{subfig}
 
 
 \begin{document}
@@ -25,95 +26,96 @@ Here is the text of your introduction.
 
 \begin{figure}
   \centering
-  \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}]
-    \pgfmathsetmacro{\lastelementsinrow}{4}
-    \foreach \x in {0,...,\lastelementsinrow}
-    {
-      \foreach \y in {0,...,\lastelementsinrow}
+  \subfloat[Mesh]
+  {
+    \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}]
+      \pgfmathsetmacro{\lastelementsinrow}{4}
+      \foreach \x in {0,...,\lastelementsinrow}
       {
-        \pgfmathtruncatemacro{\label}{\y * \lastelementsinrow + \y + \x}
-        \ifthenelse{\x=2 \AND \y=2}{\node (\x\y) [circ,fill=red!40] at (\x, \y) {\label}}{\node (\x\y) [circ] at (\x, \y) {\label}};
+        \foreach \y in {0,...,\lastelementsinrow}
+        {
+          \pgfmathtruncatemacro{\label}{\y * \lastelementsinrow + \y + \x}
+          \ifthenelse{\x=2 \AND \y=2}{\node (\x\y) [circ,fill=red!40] at (\x, \y) {\label}}{\node (\x\y) [circ] at (\x, \y) {\label}};
+        }
       }
-    }
 
-    \foreach \x in {1,...,\lastelementsinrow}
-    {
-      \foreach \y in {0,...,\lastelementsinrow}
+      \foreach \x in {1,...,\lastelementsinrow}
       {
-        \pgfmathtruncatemacro{\px}{\x - 1}
-        \draw [line width=0.5mm] (\x\y) -- (\px\y);
+        \foreach \y in {0,...,\lastelementsinrow}
+        {
+          \pgfmathtruncatemacro{\px}{\x - 1}
+          \draw [line width=0.5mm] (\x\y) -- (\px\y);
+        }
       }
-    }
 
-    \foreach \x in {0,...,\lastelementsinrow}
-    {
-      \foreach \y in {1,...,\lastelementsinrow}
+      \foreach \x in {0,...,\lastelementsinrow}
       {
-        \pgfmathtruncatemacro{\py}{\y - 1}
-        \draw [line width=0.5mm] (\x\y) -- (\x\py);
+        \foreach \y in {1,...,\lastelementsinrow}
+        {
+          \pgfmathtruncatemacro{\py}{\y - 1}
+          \draw [line width=0.5mm] (\x\y) -- (\x\py);
+        }
       }
-    }
 
-    \foreach \x in {1,...,\lastelementsinrow}
-    {
-      \foreach \y in {1,...,\lastelementsinrow}
+      \foreach \x in {1,...,\lastelementsinrow}
       {
-        \pgfmathtruncatemacro{\py}{\y - 1}
-        \pgfmathtruncatemacro{\px}{\x - 1}
-        \draw [line width=0.5mm] (\x\y) -- (\px\py);
+        \foreach \y in {1,...,\lastelementsinrow}
+        {
+          \pgfmathtruncatemacro{\py}{\y - 1}
+          \pgfmathtruncatemacro{\px}{\x - 1}
+          \draw [line width=0.5mm] (\x\y) -- (\px\py);
+        }
       }
-    }
-  \end{tikzpicture}
+    \end{tikzpicture}
+  }
+  \qquad
+  \subfloat[Matrix]
+  {
+    \begin{tikzpicture}
+      \pgfmathsetmacro{\size}{4.6}
+      \pgfmathsetmacro{\es}{\size/24}
+      \pgfmathsetmacro{\pd}{\es/6}
+      \pgfmathsetmacro{\ebs}{\es - 2 * \pd}
+      \draw (0,0) rectangle ++(\size,\size);
+
+      % Diagonal part
+      \foreach \x in {0,...,23}
+        \foreach \y in {0,...,23}
+         \ifthenelse{\x=\y}
+         {
+           \ifthenelse{\y=12}
+           {
+             \fill [red!40] (\es * \x + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs)
+           }
+           {
+             \fill [gray] (\es * \x + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs)
+           }
+         }{};
+
+      % Left part
+      \foreach \y in {1,...,23}
+       \fill [gray] (\es * \y - \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+      % Right part
+      \foreach \y in {0,...,22}
+       \fill [gray] (\es * \y + \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+      % Bottom part
+      \foreach \y in {5,...,23}
+       \fill [gray] (\es * \y - 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+      % Top part
+      \foreach \y in {0,...,19}
+       \fill [gray] (\es * \y + 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+
+      % Diag part
+      \foreach \y in {0,...,17}
+       \fill [gray] (\es * \y + 6 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+      \foreach \y in {6,...,23}
+       \fill [gray] (\es * \y - 6 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+    \end{tikzpicture}
+  }
   \caption{A simple finite element mesh model}
-\end{figure}
-
-\pgfsetplotmarksize{0.05cm}
-\begin{figure}
-  \centering
-  \begin{tikzpicture}
-    \pgfmathsetmacro{\size}{5}
-    \pgfmathsetmacro{\es}{\size/24}
-    \pgfmathsetmacro{\pd}{\es/6}
-    \pgfmathsetmacro{\ebs}{\es - 2 * \pd}
-    \draw (0,0) rectangle ++(\size,\size);
-
-    % Diagonal part
-    \foreach \x in {0,...,23}
-      \foreach \y in {0,...,23}
-       \ifthenelse{\x=\y}
-       {
-         \ifthenelse{\y=12}
-         {
-           \fill [red!40] (\es * \x + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs)
-         }
-         {
-           \fill [gray] (\es * \x + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs)
-         }
-       }{};
-
-    % Left part
-    \foreach \y in {1,...,23}
-     \fill [gray] (\es * \y - \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
-
-    % Right part
-    \foreach \y in {0,...,22}
-     \fill [gray] (\es * \y + \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
-
-    % Bottom part
-    \foreach \y in {5,...,23}
-     \fill [gray] (\es * \y - 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
-
-    % Top part
-    \foreach \y in {0,...,19}
-     \fill [gray] (\es * \y + 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
-
-    % Diag part
-    \foreach \y in {0,...,17}
-     \fill [gray] (\es * \y + 6 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
-    \foreach \y in {6,...,23}
-     \fill [gray] (\es * \y - 6 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
-        
-  \end{tikzpicture}
 \end{figure}
 
 \section{Data Structures for Sparse Matrices}
