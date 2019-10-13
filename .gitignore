@@ -4,3 +4,11 @@
 cmake-build-debug/
 
 cmake-build-release/
+
+doc/post.aux
+
+doc/.post.tex.swp
+
+doc/post.log
+
+doc/post.pdf
