@@ -4,8 +4,11 @@
 
 #include "matrix_converter.h"
 
+#include <algorithm>
 #include <iostream>
+#include <numeric>
 #include <limits>
+#include <chrono>
 
 csr_matrix_class::csr_matrix_class (matrix_market::matrix_class &matrix)
   : meta (matrix.meta)
@@ -223,6 +226,64 @@ coo_matrix_class::coo_matrix_class (csr_matrix_class &matrix, unsigned int eleme
 size_t coo_matrix_class::get_matrix_size () const
 {
   return elements_count;
+}
+
+class elements_sort
+{
+  unsigned int *keys_1 {};
+  unsigned int *keys_2 {};
+public:
+  elements_sort (unsigned int *keys_1_arg, unsigned int *keys_2_arg)
+    : keys_1 (keys_1_arg)
+    , keys_2 (keys_2_arg)
+  { }
+
+  bool operator () (unsigned int i, unsigned int j) const
+  {
+    if (keys_1[i] == keys_1[j])
+      return keys_2[i] < keys_2[j];
+
+    return keys_1[i] < keys_1[j];
+  }
+};
+
+scoo_matrix_class::scoo_matrix_class (coo_matrix_class &matrix)
+  : meta (matrix.meta)
+{
+  const size_t coo_matrix_size = matrix.get_matrix_size ();
+  c_index.reset (new unsigned int[coo_matrix_size]);
+  r_index.reset (new unsigned int[coo_matrix_size]);
+  values.reset (new double[coo_matrix_size]);
+
+  unsigned int *src_cols = matrix.cols.get ();
+  unsigned int *src_rows = matrix.rows.get ();
+
+  using namespace std;
+  auto begin = chrono::system_clock::now ();
+
+  unique_ptr<unsigned int[]> permutation_indexes (new unsigned int[coo_matrix_size]);
+  iota (permutation_indexes.get (), permutation_indexes.get () + coo_matrix_size, 0u);
+  sort (permutation_indexes.get (), permutation_indexes.get () + coo_matrix_size, elements_sort (src_cols, src_rows));
+
+  auto end = chrono::system_clock::now ();
+  const double elapsed = chrono::duration<double> (end - begin).count ();
+
+  cout << "Sorting data for SCOO took: " << elapsed << "s\n";
+
+  double *src_data = matrix.data.get ();
+
+  for (unsigned int element = 0; element < coo_matrix_size; element++)
+  {
+    const unsigned int new_position = permutation_indexes[element];
+    c_index[new_position] = src_cols[element];
+    r_index[new_position] = src_rows[element];
+    values[new_position] = src_data[element];
+  }
+}
+
+size_t scoo_matrix_class::get_matrix_size () const
+{
+  return 0;
 }
 
 hybrid_matrix_class::hybrid_matrix_class (csr_matrix_class &matrix)

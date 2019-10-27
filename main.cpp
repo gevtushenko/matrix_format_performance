@@ -105,6 +105,10 @@ int main(int argc, char *argv[])
       auto gpu_time = gpu_coo_spmv (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       cout << "GPU COO: " << gpu_time << " (SSCPU = " << cpu_naive_time / gpu_time << "; SMPCU = " << cpu_parallel_naive_time / gpu_time << ")" << endl;
     }
+    
+    {
+      scoo_matrix_class scoo_matrix (*coo_matrix);
+    }
 
     resizable_gpu_memory<double> A_coo;
     resizable_gpu_memory<unsigned int> col_ids_coo;

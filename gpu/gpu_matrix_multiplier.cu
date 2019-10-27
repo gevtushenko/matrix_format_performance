@@ -877,6 +877,7 @@ double gpu_hybrid_cpu_coo_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  cudaDeviceSynchronize ();
   cudaEventRecord (start);
 
   /// ELL Part

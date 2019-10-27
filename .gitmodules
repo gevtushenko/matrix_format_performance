@@ -7,3 +7,6 @@
 [submodule "external/vectorclass"]
 	path = external/vectorclass
 	url = https://github.com/vectorclass/version2.git
+[submodule "external/fmt"]
+	path = external/fmt
+	url = https://github.com/fmtlib/fmt.git
