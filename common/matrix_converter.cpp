@@ -291,11 +291,9 @@ hybrid_matrix_class::hybrid_matrix_class (csr_matrix_class &matrix)
 {
   if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
     throw std::runtime_error ("Only general matrices are supported");
-
-  reallocate (matrix, 0.0);
 }
 
-void hybrid_matrix_class::reallocate (csr_matrix_class &matrix, double percent)
+void hybrid_matrix_class::allocate(csr_matrix_class &matrix, double percent)
 {
   const auto row_ptr = matrix.row_ptr.get ();
 

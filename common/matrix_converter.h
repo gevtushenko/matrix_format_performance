@@ -90,7 +90,7 @@ public:
   hybrid_matrix_class () = delete;
   explicit hybrid_matrix_class (csr_matrix_class &matrix);
 
-  void reallocate (csr_matrix_class &matrix, double percent);
+  void allocate (csr_matrix_class &matrix, double percent);
 
   const matrix_market::matrix_class::matrix_meta meta;
 
