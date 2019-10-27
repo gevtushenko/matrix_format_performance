@@ -113,6 +113,7 @@ double gpu_csr_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  cudaDeviceSynchronize ();
   cudaEventRecord (start);
   {
     dim3 block_size = dim3 (512);
@@ -236,6 +237,7 @@ double gpu_csr_vector_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  cudaDeviceSynchronize ();
   cudaEventRecord (start);
   {
     dim3 block_size = dim3 (512);
@@ -325,6 +327,7 @@ double gpu_ell_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  cudaDeviceSynchronize ();
   cudaEventRecord (start);
   {
     dim3 block_size = dim3 (512);
@@ -411,6 +414,7 @@ double gpu_coo_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  cudaDeviceSynchronize ();
   cudaEventRecord (start);
   {
     dim3 block_size = dim3 (512);
@@ -571,6 +575,7 @@ double gpu_hybrid_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  cudaDeviceSynchronize ();
   cudaEventRecord (start);
 
   /// ELL Part
@@ -703,6 +708,7 @@ double gpu_hybrid_atomic_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  cudaDeviceSynchronize ();
   cudaEventRecord (start);
 
   {
