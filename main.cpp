@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
 
   for (auto &precision: { "float", "double" })
   {
-    ofstream os (std::string (precision) + ".csv");
+    ofstream os (std::string (precision) + ".json");
     os << measurements[precision].dump (2);
   }
 
