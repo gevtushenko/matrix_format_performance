@@ -79,8 +79,8 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
     csr_matrix = make_unique<csr_matrix_class<data_type>> (reader.matrix ());
     cout << "Complete converting to CSR" << endl;
 
-    if (   csr_matrix->get_matrix_size () * sizeof (data_type) > free_memory * 0.9
-        || ell_matrix_class<data_type>::estimate_size (*csr_matrix) * sizeof (data_type) > free_memory * 0.9)
+    if (   csr_matrix->get_matrix_size () * sizeof (data_type) > free_memory * 0.7
+        || ell_matrix_class<data_type>::estimate_size (*csr_matrix) * sizeof (data_type) > free_memory * 0.7)
       return {};
 
     ell_matrix = make_unique<ell_matrix_class<data_type>> (*csr_matrix);
@@ -92,6 +92,7 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
 
   // CPU
   std::unique_ptr<data_type[]> reference_answer (new data_type[csr_matrix->meta.rows_count]);
+  std::unique_ptr<data_type[]> reference_answer_for_reduce_order (new data_type[csr_matrix->meta.rows_count]);
   std::unique_ptr<data_type[]> cpu_y (new data_type[csr_matrix->meta.rows_count]);
   std::unique_ptr<data_type[]> x (new data_type[std::max (csr_matrix->meta.rows_count, csr_matrix->meta.cols_count)]);
 
@@ -146,7 +147,8 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
     }
 
     {
-      auto gpu_time = gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      cpu_csr_spmv_single_thread_naive_with_reduce_order (*csr_matrix, x.get (), reference_answer_for_reduce_order.get ());
+      auto gpu_time = gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ());
       multi_core_timer.print_time ("GPU CSR (vector)", gpu_time);
       measurements["GPU CSR (vector)"] = gpu_time;
     }

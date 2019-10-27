@@ -11,6 +11,7 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <array>
 
 #include <immintrin.h>
 
@@ -39,6 +40,52 @@ double cpu_csr_spmv_single_thread_naive (
     for (auto element = row_start; element < row_end; element++)
       dot += data[element] * x[col_ids[element]];
     y[row] = dot;
+  }
+
+  auto end = chrono::system_clock::now ();
+  return chrono::duration<double> (end - begin).count ();
+}
+
+template<typename data_type>
+double cpu_csr_spmv_single_thread_naive_with_reduce_order (
+    const csr_matrix_class<data_type> &matrix,
+    data_type *x,
+    data_type *y)
+{
+  fill_n (x, matrix.meta.cols_count, 1.0);
+
+  const auto row_ptr = matrix.row_ptr.get ();
+  const auto col_ids = matrix.columns.get ();
+  const auto data = matrix.data.get ();
+
+  auto begin = chrono::system_clock::now ();
+
+  std::array<data_type, 32> dots {};
+  dots.fill (0.0);
+
+  for (unsigned int row = 0; row < matrix.meta.rows_count; row++)
+  {
+    const auto row_start = row_ptr[row];
+    const auto row_end = row_ptr[row + 1];
+
+    // calc
+    for (unsigned int lane = 0; lane < 32; lane++)
+    {
+      dots[lane] = 0.0;
+      for (unsigned int element = row_start + lane; element < row_end; element += 32)
+        dots[lane] += data[element] * x[col_ids[element]];
+    }
+
+    // reduce
+    for (int offset = 16; offset > 0; offset /= 2)
+    {
+      for (unsigned int lane = 0; lane < 16; lane++)
+      {
+        dots[lane] += dots[lane + offset];
+      }
+    }
+
+    y[row] = dots[0];
   }
 
   auto end = chrono::system_clock::now ();
@@ -183,6 +230,7 @@ double cpu_ell_spmv_multi_thread_naive (
 
 #define INSTANCTIATE(TYPE) \
   template double cpu_csr_spmv_single_thread_naive<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y); \
+  template double cpu_csr_spmv_single_thread_naive_with_reduce_order<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y); \
   template double cpu_csr_spmv_multi_thread_naive<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y);
 
 INSTANCTIATE(float)

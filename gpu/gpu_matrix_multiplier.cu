@@ -10,41 +10,21 @@
 #include <limits>
 
 template <typename data_type>
-static bool check_equal (data_type a, data_type b)
+void compare_results (unsigned int y_size, const data_type *a, const data_type *b)
 {
-  constexpr data_type threshold = 1e-2;
-  constexpr data_type epsilon = 1e-8;
+  data_type numerator = 0.0;
+  data_type denumerator = 0.0;
 
-  if (std::abs (a) > threshold)
-  {
-    const data_type difference = std::abs (a - b);
-
-    // Scale to the largest value.
-    a = std::abs(a);
-    b = std::abs(b);
-
-    const data_type scaledEpsilon = 1e-4 * std::max (a, b);
-    return difference <= scaledEpsilon;
-  }
-
-  return std::abs (a - b) < epsilon;
-}
-
-template <typename data_type>
-void compare_results (unsigned int y_size, const data_type *reusable_vector, const data_type *reference_y)
-{
-  unsigned int diff_count = 0;
   for (unsigned int i = 0; i < y_size; i++)
   {
-    if (!check_equal (reusable_vector[i], reference_y[i]))
-    {
-      std::cerr << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
-      diff_count += check_equal (reusable_vector[i], reference_y[i]);
-    }
-
-    if (diff_count > 4)
-      break;
+    numerator += (a[i] - b[i]) * (a[i] - b[i]);
+    denumerator += b[i] * b[i];
   }
+
+  const data_type error = numerator / denumerator;
+
+  if (error > 1e-9)
+    std::cerr << "ERROR: " << error << std::endl;
 }
 
 template <typename data_type>
@@ -253,7 +233,7 @@ double gpu_csr_vector_spmv (
     const unsigned int warp_size = 32; /// One warp per row
     grid_size.x = (warp_size * meta.rows_count + block_size.x - 1) / block_size.x;
 
-    csr_spmv_vector_kernel<<<grid_size, block_size>>> (
+    csr_spmv_vector_kernel<data_type><<<grid_size, block_size>>> (
         meta.rows_count, col_ids.get (), row_ptr.get (), A.get (), x.get (), y.get ());
   }
   cudaEventRecord (stop);

@@ -19,6 +19,12 @@ double cpu_csr_spmv_single_thread_naive (
     data_type *y);
 
 template<typename data_type>
+double cpu_csr_spmv_single_thread_naive_with_reduce_order (
+    const csr_matrix_class<data_type> &matrix,
+    data_type *x,
+    data_type *y);
+
+template<typename data_type>
 double cpu_csr_spmv_multi_thread_naive (
     const csr_matrix_class<data_type> &matrix,
     data_type *x,
