@@ -10,13 +10,14 @@
 #include <limits>
 #include <chrono>
 
-csr_matrix_class::csr_matrix_class (matrix_market::matrix_class &matrix)
+template <typename data_type>
+csr_matrix_class<data_type>::csr_matrix_class (const matrix_market::matrix_class &matrix)
   : meta (matrix.meta)
 {
   if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
     throw std::runtime_error ("Only general matrices are supported");
 
-  data.reset (new double [meta.non_zero_count]);
+  data.reset (new data_type [meta.non_zero_count]);
   columns.reset (new unsigned int[meta.non_zero_count]);
   row_ptr.reset (new unsigned int[meta.rows_count + 1]);
   std::fill_n (row_ptr.get (), meta.rows_count + 1, 0u);
@@ -48,7 +49,8 @@ csr_matrix_class::csr_matrix_class (matrix_market::matrix_class &matrix)
   }
 }
 
-size_t csr_matrix_class::get_matrix_size () const
+template <typename data_type>
+size_t csr_matrix_class<data_type>::get_matrix_size () const
 {
   return meta.non_zero_count;
 }
@@ -85,7 +87,8 @@ matrix_rows_statistic get_rows_statistics (
   return statistic;
 }
 
-ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix)
+template <typename data_type>
+ell_matrix_class<data_type>::ell_matrix_class (csr_matrix_class<data_type> &matrix)
   : meta (matrix.meta)
 {
   if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
@@ -102,7 +105,7 @@ ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix)
             << "; avg: " << avg_elements<< ")" << std::endl;
 
   const unsigned int elements_count = elements_in_rows * meta.rows_count;
-  data.reset (new double [elements_count]);
+  data.reset (new data_type[elements_count]);
   columns.reset (new unsigned int[elements_count]);
 
   std::fill_n (data.get (), elements_count, 0);
@@ -121,7 +124,8 @@ ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix)
   }
 }
 
-ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix, unsigned int elements_in_row_arg)
+template <typename data_type>
+ell_matrix_class<data_type>::ell_matrix_class (csr_matrix_class<data_type> &matrix, unsigned int elements_in_row_arg)
   : meta (matrix.meta)
   , elements_in_rows (elements_in_row_arg)
 {
@@ -129,7 +133,7 @@ ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix, unsigned int eleme
   const auto col_ptr = matrix.columns.get ();
 
   const unsigned int elements_count = get_matrix_size ();
-  data.reset (new double [elements_count]);
+  data.reset (new data_type[elements_count]);
   columns.reset (new unsigned int[elements_count]);
 
   std::fill_n (data.get (), elements_count, 0);
@@ -149,19 +153,21 @@ ell_matrix_class::ell_matrix_class (csr_matrix_class &matrix, unsigned int eleme
   }
 }
 
-size_t ell_matrix_class::get_matrix_size () const
+template <typename data_type>
+size_t ell_matrix_class<data_type>::get_matrix_size () const
 {
   return meta.rows_count * elements_in_rows;
 }
 
-coo_matrix_class::coo_matrix_class(csr_matrix_class &matrix)
+template <typename data_type>
+coo_matrix_class<data_type>::coo_matrix_class(csr_matrix_class<data_type> &matrix)
   : meta (matrix.meta)
   , elements_count (meta.non_zero_count)
 {
   if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
     throw std::runtime_error ("Only general matrices are supported");
 
-  data.reset (new double [meta.non_zero_count]);
+  data.reset (new data_type[meta.non_zero_count]);
   cols.reset (new unsigned int[meta.non_zero_count]);
   rows.reset (new unsigned int[meta.non_zero_count]);
 
@@ -184,7 +190,8 @@ coo_matrix_class::coo_matrix_class(csr_matrix_class &matrix)
   }
 }
 
-coo_matrix_class::coo_matrix_class (csr_matrix_class &matrix, unsigned int element_start)
+template <typename data_type>
+coo_matrix_class<data_type>::coo_matrix_class (csr_matrix_class<data_type> &matrix, unsigned int element_start)
   : meta (matrix.meta)
 {
   const auto row_ptr = matrix.row_ptr.get ();
@@ -200,7 +207,7 @@ coo_matrix_class::coo_matrix_class (csr_matrix_class &matrix, unsigned int eleme
       elements_count++;
   }
 
-  data.reset (new double [get_matrix_size ()]);
+  data.reset (new data_type[get_matrix_size ()]);
   cols.reset (new unsigned int[get_matrix_size ()]);
   rows.reset (new unsigned int[get_matrix_size ()]);
 
@@ -223,7 +230,8 @@ coo_matrix_class::coo_matrix_class (csr_matrix_class &matrix, unsigned int eleme
   }
 }
 
-size_t coo_matrix_class::get_matrix_size () const
+template <typename data_type>
+size_t coo_matrix_class<data_type>::get_matrix_size () const
 {
   return elements_count;
 }
@@ -247,7 +255,7 @@ public:
   }
 };
 
-scoo_matrix_class::scoo_matrix_class (coo_matrix_class &matrix)
+scoo_matrix_class::scoo_matrix_class (coo_matrix_class<double> &matrix)
   : meta (matrix.meta)
 {
   const size_t coo_matrix_size = matrix.get_matrix_size ();
@@ -286,24 +294,38 @@ size_t scoo_matrix_class::get_matrix_size () const
   return 0;
 }
 
-hybrid_matrix_class::hybrid_matrix_class (csr_matrix_class &matrix)
+template <typename data_type>
+hybrid_matrix_class<data_type>::hybrid_matrix_class (csr_matrix_class<data_type> &matrix)
   : meta (matrix.meta)
 {
   if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
     throw std::runtime_error ("Only general matrices are supported");
 }
 
-void hybrid_matrix_class::allocate(csr_matrix_class &matrix, double percent)
+template <typename data_type>
+void hybrid_matrix_class<data_type>::allocate(csr_matrix_class<data_type> &matrix, double percent)
 {
   const auto row_ptr = matrix.row_ptr.get ();
 
   auto [_1, max_elements, avg_elements] = get_rows_statistics (meta, row_ptr);
   const unsigned int elements_per_ell = avg_elements + (max_elements - avg_elements) * percent;
 
-  ell_matrix = std::make_unique<ell_matrix_class> (matrix, elements_per_ell); /// Don't use more than avg elements in an ELL row
-  coo_matrix = std::make_unique<coo_matrix_class> (matrix, elements_per_ell); /// Don't use elements before avg elements in an COO row
+  ell_matrix = std::make_unique<ell_matrix_class<data_type>> (matrix, elements_per_ell); /// Don't use more than avg elements in an ELL row
+  coo_matrix = std::make_unique<coo_matrix_class<data_type>> (matrix, elements_per_ell); /// Don't use elements before avg elements in an COO row
 
   std::cout << "ELL elements per row: " << elements_per_ell << "; "
             << "COO elements: " << coo_matrix->get_matrix_size () << "; ELL elements: " << ell_matrix->get_matrix_size () << "; "
             << "COO/ELL Ratio: " << static_cast<double> (coo_matrix->get_matrix_size ()) / ell_matrix->get_matrix_size () << std::endl;
 }
+
+template class csr_matrix_class<float>;
+template class csr_matrix_class<double>;
+
+template class ell_matrix_class<float>;
+template class ell_matrix_class<double>;
+
+template class coo_matrix_class<float>;
+template class coo_matrix_class<double>;
+
+template class hybrid_matrix_class<float>;
+template class hybrid_matrix_class<double>;
