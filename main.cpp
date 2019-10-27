@@ -79,8 +79,14 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
     csr_matrix = make_unique<csr_matrix_class<data_type>> (reader.matrix ());
     cout << "Complete converting to CSR" << endl;
 
-    if (   csr_matrix->get_matrix_size () * sizeof (data_type) > free_memory * 0.7
-        || ell_matrix_class<data_type>::estimate_size (*csr_matrix) * sizeof (data_type) > free_memory * 0.7)
+    const size_t csr_matrix_size = csr_matrix->get_matrix_size ();
+    const size_t ell_matrix_size = ell_matrix_class<data_type>::estimate_size (*csr_matrix);
+
+    const size_t vec_size = std::max (reader.matrix ().meta.rows_count, reader.matrix ().meta.cols_count) * sizeof (data_type);
+    const size_t matrix_size = std::max (csr_matrix_size, ell_matrix_size) * sizeof (data_type);
+    const size_t estimated_size = matrix_size + 5 * vec_size;
+
+    if (estimated_size * sizeof (data_type) > free_memory * 0.9)
       return {};
 
     ell_matrix = make_unique<ell_matrix_class<data_type>> (*csr_matrix);
