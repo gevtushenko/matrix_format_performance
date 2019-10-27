@@ -11,5 +11,6 @@ add_subdirectory(common)
 add_subdirectory(gpu)
 add_subdirectory(cpu)
 
+include_directories(external/json)
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} common gpu cpu cpp_itt fmt)

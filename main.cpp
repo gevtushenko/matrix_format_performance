@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "json.hpp"
+
 #include "matrix_market_reader.h"
 #include "resizable_gpu_memory.h"
 #include "matrix_converter.h"
@@ -17,6 +19,7 @@
 #include "fmt/color.h"
 #include "fmt/core.h"
 
+using namespace nlohmann;
 using namespace std;
 
 class time_printer
@@ -230,7 +233,7 @@ int main(int argc, char *argv[])
   ifstream list (argv[1]);
 
   string mtx;
-  unordered_map<string, unordered_map<string, unordered_map<string, double>>> measurements;
+  json measurements;
 
   while (getline (list, mtx))
   {
@@ -245,9 +248,16 @@ int main(int argc, char *argv[])
 
     if (float_result.empty () || double_result.empty ())
       continue; // Don't store result for matrices that couldn't be computed on GPU
-    measurements[mtx]["float"] = float_result;
-    measurements[mtx]["double"] = double_result;
+    measurements["float"][mtx] = float_result;
+    measurements["double"][mtx] = double_result;
   }
 
+  for (auto &precision: { "float", "double" })
+  {
+    ofstream os (std::string (precision) + ".csv");
+    os << measurements[precision].dump (2);
+  }
+
+  // inf -> /home/egi/Documents/data/matrices/matrix_market/unco/raw/lp_scsd8/lp_scsd8.mtx
   return 0;
 }
