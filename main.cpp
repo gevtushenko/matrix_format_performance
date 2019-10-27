@@ -107,9 +107,14 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
 
   double cpu_naive_time {};
 
+  const unsigned int measurements_count = 10;
+
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_single_thread_naive");
-    cpu_naive_time = cpu_csr_spmv_single_thread_naive (*csr_matrix, x.get (), reference_answer.get ());
+
+    for (unsigned int measurement = 0; measurement < measurements_count; measurement++)
+      cpu_naive_time += cpu_csr_spmv_single_thread_naive (*csr_matrix, x.get (), reference_answer.get ());
+    cpu_naive_time /= measurements_count;
   }
 
   time_printer single_core_timer (cpu_naive_time);
@@ -120,7 +125,9 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
 
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
-    cpu_parallel_naive_time = cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ());
+    for (unsigned int measurement = 0; measurement < measurements_count; measurement++)
+      cpu_parallel_naive_time += cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ());
+    cpu_parallel_naive_time /= measurements_count;
     single_core_timer.print_time ("CPU CSR Parallel", cpu_parallel_naive_time);
     measurements["CPU CSR Parallel"] = cpu_parallel_naive_time;
   }

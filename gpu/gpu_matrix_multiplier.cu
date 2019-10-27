@@ -24,7 +24,18 @@ void compare_results (unsigned int y_size, const data_type *a, const data_type *
   const data_type error = numerator / denumerator;
 
   if (error > 1e-9)
+  {
     std::cerr << "ERROR: " << error << std::endl;
+
+    for (unsigned int i = 0; i < y_size; i++)
+    {
+      if (std::abs (a[i] - b[i]) > 1e-8)
+      {
+        std::cout << "a[i] = " << a[i] << "; b[i] = " << b[i] << std::endl;
+        break;
+      }
+    }
+  }
 }
 
 template <typename data_type>
