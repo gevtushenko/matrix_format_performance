@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include <unordered_map>
 #include <optional>
 #include <iostream>
 #include <fstream>
@@ -64,16 +65,9 @@ public:
 };
 
 template <typename data_type>
-void perform_measurement (const matrix_market::reader &reader)
+unordered_map<string, double> perform_measurement (const matrix_market::reader &reader, size_t free_memory)
 {
-  if (std::is_same<float, data_type>::value)
-  {
-    cout << "\n\nFLOAT:\n";
-  }
-  else if (std::is_same<double, data_type>::value)
-  {
-    cout << "\n\nDOUBLE:\n";
-  }
+  unordered_map<string, double> measurements;
 
   unique_ptr<csr_matrix_class<data_type>> csr_matrix;
   unique_ptr<ell_matrix_class<data_type>> ell_matrix;
@@ -90,12 +84,16 @@ void perform_measurement (const matrix_market::reader &reader)
 
     coo_matrix = make_unique<coo_matrix_class<data_type>> (*csr_matrix);
     cout << "Complete converting to COO" << endl;
+
+    if (   csr_matrix->get_matrix_size () * sizeof (double) > free_memory * 0.9
+        || ell_matrix->get_matrix_size () * sizeof (double) > free_memory * 0.9)
+      return {};
   }
 
   // CPU
-  std::unique_ptr<data_type[]> reference_answer (new data_type[csr_matrix->meta.cols_count]);
+  std::unique_ptr<data_type[]> reference_answer (new data_type[csr_matrix->meta.rows_count]);
   std::unique_ptr<data_type[]> cpu_y (new data_type[csr_matrix->meta.rows_count]);
-  std::unique_ptr<data_type[]> x (new data_type[csr_matrix->meta.cols_count]);
+  std::unique_ptr<data_type[]> x (new data_type[std::max (csr_matrix->meta.rows_count, csr_matrix->meta.cols_count)]);
 
   double cpu_naive_time {};
 
@@ -106,6 +104,7 @@ void perform_measurement (const matrix_market::reader &reader)
 
   time_printer single_core_timer (cpu_naive_time);
   single_core_timer.print_time ("CPU CSR", cpu_naive_time);
+  measurements["CPU CSR"] = cpu_naive_time;
 
   double cpu_parallel_naive_time {};
 
@@ -113,6 +112,7 @@ void perform_measurement (const matrix_market::reader &reader)
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
     cpu_parallel_naive_time = cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ());
     single_core_timer.print_time ("CPU CSR Parallel", cpu_parallel_naive_time);
+    measurements["CPU CSR Parallel"] = cpu_parallel_naive_time;
   }
 
   time_printer multi_core_timer (cpu_naive_time, cpu_parallel_naive_time);
@@ -142,21 +142,25 @@ void perform_measurement (const matrix_market::reader &reader)
     {
       auto gpu_time = gpu_csr_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time ("GPU CSR", gpu_time);
+      measurements["GPU CSR"] = gpu_time;
     }
 
     {
       auto gpu_time = gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time ("GPU CSR (vector)", gpu_time);
+      measurements["GPU CSR (vector)"] = gpu_time;
     }
 
     {
       auto gpu_time = gpu_ell_spmv<data_type> (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time ("GPU ELL", gpu_time);
+      measurements["GPU ELL"] = gpu_time;
     }
 
     {
       auto gpu_time = gpu_coo_spmv<data_type> (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time ("GPU COO", gpu_time);
+      measurements["GPU COO"] = gpu_time;
     }
 
     // if (0)
@@ -176,43 +180,66 @@ void perform_measurement (const matrix_market::reader &reader)
       std::string percent_str = std::to_string ((int)(percent * 100));
 
       {
+        const string label = "GPU HYBRID " + percent_str;
         auto gpu_time = gpu_hybrid_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-        multi_core_timer.print_time ("GPU HYBRID " + percent_str, gpu_time);
+        multi_core_timer.print_time (label, gpu_time);
+        measurements[label] = gpu_time;
       }
 
       {
+        const string label = "GPU HYBRID ATOMIC " + percent_str;
         auto gpu_time = gpu_hybrid_atomic_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-        multi_core_timer.print_time ("GPU HYBRID ATOMIC " + percent_str, gpu_time);
+        multi_core_timer.print_time (label, gpu_time);
+        measurements[label] = gpu_time;
       }
 
       {
+        const string label = "GPU HYBRID CPU COO " + percent_str;
         resizable_gpu_memory<data_type> tmp;
         auto gpu_time = gpu_hybrid_cpu_coo_spmv<data_type> (hybrid_matrix, A, col_ids, x_gpu, y, tmp, cpu_y.get (), x.get (), reference_answer.get ());
-        multi_core_timer.print_time ("GPU HYBRID CPU COO " + percent_str, gpu_time);
+        multi_core_timer.print_time (label, gpu_time);
+        measurements[label] = gpu_time;
       }
     }
   }
 
+  return measurements;
 }
 
 int main(int argc, char *argv[])
 {
   if (argc != 2)
   {
-    cerr << "Usage: " << argv[0] << " /path/to/mtx" << endl;
+    cerr << "Usage: " << argv[0] << " /path/to/mtx_list" << endl;
     return 1;
   }
 
   cudaSetDevice (0);
 
-  fmt::print ("Start loading matrix\n");
+  size_t free_gpu_mem, total_gpu_mem;
+  cudaMemGetInfo (&free_gpu_mem, &total_gpu_mem);
 
-  ifstream is (argv[1]);
-  matrix_market::reader reader (is);
-  cout << "Complete loading" << endl;
+  ifstream list (argv[1]);
 
-  perform_measurement<float> (reader);
-  perform_measurement<double> (reader);
+  string mtx;
+  unordered_map<string, unordered_map<string, unordered_map<string, double>>> measurements;
+
+  while (getline (list, mtx))
+  {
+    fmt::print ("Start loading matrix {}\n", mtx);
+
+    ifstream is (mtx);
+    matrix_market::reader reader (is);
+    cout << "Complete loading" << endl;
+
+    auto float_result = perform_measurement<float> (reader, free_gpu_mem);
+    auto double_result = perform_measurement<double> (reader, free_gpu_mem);
+
+    if (float_result.empty () || double_result.empty ())
+      continue; // Don't store result for matrices that couldn't be computed on GPU
+    measurements[mtx]["float"] = float_result;
+    measurements[mtx]["double"] = double_result;
+  }
 
   return 0;
 }
