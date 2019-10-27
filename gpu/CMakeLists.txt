@@ -8,7 +8,7 @@ set(GPU_SOURCES
 
 find_package(CUDA QUIET)
 
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O3 -lineinfo -gencode arch=compute_75,code=sm_75")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -g -lineinfo -gencode arch=compute_75,code=sm_75")
 cuda_add_library(gpu ${GPU_SOURCES})
 target_include_directories(gpu PUBLIC . ${CUDA_INCLUDE_DIRS})
 target_link_libraries(gpu common)

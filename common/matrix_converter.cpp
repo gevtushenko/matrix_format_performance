@@ -88,6 +88,16 @@ matrix_rows_statistic get_rows_statistics (
 }
 
 template <typename data_type>
+size_t ell_matrix_class<data_type>::estimate_size (csr_matrix_class<data_type> &matrix)
+{
+  const auto row_ptr = matrix.row_ptr.get ();
+  auto [min_elements, max_elements, avg_elements] = get_rows_statistics (matrix.meta, row_ptr);
+  size_t elements_in_rows = max_elements;
+
+  return elements_in_rows * matrix.meta.rows_count;
+}
+
+template <typename data_type>
 ell_matrix_class<data_type>::ell_matrix_class (csr_matrix_class<data_type> &matrix)
   : meta (matrix.meta)
 {
@@ -104,7 +114,7 @@ ell_matrix_class<data_type>::ell_matrix_class (csr_matrix_class<data_type> &matr
             << " elements in rows (min: " << min_elements
             << "; avg: " << avg_elements<< ")" << std::endl;
 
-  const unsigned int elements_count = elements_in_rows * meta.rows_count;
+  const size_t elements_count = elements_in_rows * meta.rows_count;
   data.reset (new data_type[elements_count]);
   columns.reset (new unsigned int[elements_count]);
 

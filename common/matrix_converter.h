@@ -34,6 +34,8 @@ public:
   explicit ell_matrix_class (csr_matrix_class<data_type> &matrix);
   ell_matrix_class (csr_matrix_class<data_type> &matrix, unsigned int elements_in_row_arg);
 
+  static size_t estimate_size (csr_matrix_class<data_type> &matrix);
+
   const matrix_market::matrix_class::matrix_meta meta;
 
   size_t get_matrix_size () const;

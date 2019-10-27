@@ -79,15 +79,15 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
     csr_matrix = make_unique<csr_matrix_class<data_type>> (reader.matrix ());
     cout << "Complete converting to CSR" << endl;
 
+    if (   csr_matrix->get_matrix_size () * sizeof (data_type) > free_memory * 0.9
+        || ell_matrix_class<data_type>::estimate_size (*csr_matrix) * sizeof (data_type) > free_memory * 0.9)
+      return {};
+
     ell_matrix = make_unique<ell_matrix_class<data_type>> (*csr_matrix);
     cout << "Complete converting to ELL" << endl;
 
     coo_matrix = make_unique<coo_matrix_class<data_type>> (*csr_matrix);
     cout << "Complete converting to COO" << endl;
-
-    if (   csr_matrix->get_matrix_size () * sizeof (double) > free_memory * 0.9
-        || ell_matrix->get_matrix_size () * sizeof (double) > free_memory * 0.9)
-      return {};
   }
 
   // CPU

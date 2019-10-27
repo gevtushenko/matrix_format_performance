@@ -6,8 +6,46 @@
 #include "resizable_gpu_memory.h"
 
 #include <cuda_runtime.h>
+#include <iostream>
+#include <limits>
 
-constexpr double epsilon = 1e-2;
+template <typename data_type>
+static bool check_equal (data_type a, data_type b)
+{
+  constexpr data_type threshold = 1e-2;
+  constexpr data_type epsilon = 1e-8;
+
+  if (std::abs (a) > threshold)
+  {
+    const data_type difference = std::abs (a - b);
+
+    // Scale to the largest value.
+    a = std::abs(a);
+    b = std::abs(b);
+
+    const data_type scaledEpsilon = 1e-4 * std::max (a, b);
+    return difference <= scaledEpsilon;
+  }
+
+  return std::abs (a - b) < epsilon;
+}
+
+template <typename data_type>
+void compare_results (unsigned int y_size, const data_type *reusable_vector, const data_type *reference_y)
+{
+  unsigned int diff_count = 0;
+  for (unsigned int i = 0; i < y_size; i++)
+  {
+    if (!check_equal (reusable_vector[i], reference_y[i]))
+    {
+      std::cerr << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+      diff_count += check_equal (reusable_vector[i], reference_y[i]);
+    }
+
+    if (diff_count > 4)
+      break;
+  }
+}
 
 template <typename data_type>
 __global__ void csr_spmv_kernel (
@@ -40,8 +78,6 @@ __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
   if (i < n)
     vec[i] = value;
 }
-
-#include <iostream>
 
 template <typename data_type>
 double gpu_csr_spmv (
@@ -104,18 +140,7 @@ double gpu_csr_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
 
-  unsigned int diff_count = 0;
-  for (unsigned int i = 0; i < y_size; i++)
-  {
-    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
-    {
-      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
-      diff_count++;
-    }
-
-    if (diff_count > 4)
-      break;
-  }
+  compare_results (y_size, reusable_vector, reference_y);
 
   return milliseconds / 1000;
 }
@@ -239,9 +264,7 @@ double gpu_csr_vector_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
 
-  for (unsigned int i = 0; i < y_size; i++)
-    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
-      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+  compare_results (y_size, reusable_vector, reference_y);
 
   return milliseconds / 1000;
 }
@@ -329,9 +352,7 @@ double gpu_ell_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
 
-  for (unsigned int i = 0; i < y_size; i++)
-    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
-      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+  compare_results (y_size, reusable_vector, reference_y);
 
   return milliseconds / 1000;
 }
@@ -417,9 +438,7 @@ double gpu_coo_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
 
-  for (unsigned int i = 0; i < y_size; i++)
-    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
-      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+  compare_results (y_size, reusable_vector, reference_y);
 
   return milliseconds / 1000;
 }
@@ -593,18 +612,7 @@ double gpu_hybrid_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
 
-  unsigned int diff_count = 0;
-  for (unsigned int i = 0; i < y_size; i++)
-  {
-    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
-    {
-      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
-      diff_count++;
-    }
-
-    if (diff_count > 4)
-      break;
-  }
+  compare_results (y_size, reusable_vector, reference_y);
 
   return milliseconds / 1000;
 }
@@ -727,18 +735,7 @@ double gpu_hybrid_atomic_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
 
-  unsigned int diff_count = 0;
-  for (unsigned int i = 0; i < y_size; i++)
-  {
-    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
-    {
-      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
-      diff_count++;
-    }
-
-    if (diff_count > 4)
-      break;
-  }
+  compare_results (y_size, reusable_vector, reference_y);
 
   return milliseconds / 1000;
 }
@@ -854,9 +851,7 @@ double gpu_hybrid_cpu_coo_spmv (
 
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
 
-  for (unsigned int i = 0; i < y_size; i++)
-    if (std::abs (reusable_vector[i] - reference_y[i]) > epsilon)
-      std::cout << "Y'[" << i << "] != Y[" << i << "] (" << reusable_vector[i] << " != " << reference_y[i] << ")\n";
+  compare_results (y_size, reusable_vector, reference_y);
 
   return milliseconds / 1000;
 }
