@@ -50,7 +50,7 @@ print(speedup.nlargest(5, 'GPU HYBRID 0')[['CPU CSR', 'GPU HYBRID 0', 'nnz']])
 # sns.distplot(speedup['GPU COO'])
 
 
-sns.jointplot(data=speedup, x='nnz', y='GPU CSR', kind='reg')
-sns.jointplot(data=speedup, x='nnz', y='GPU ELL', kind='reg')
+sns.jointplot(data=speedup, x='nnzpr', y='GPU CSR', kind='reg')
+sns.jointplot(data=speedup, x='nnzpr', y='GPU ELL', kind='reg')
 
 plt.show()

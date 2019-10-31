@@ -244,6 +244,8 @@ int main(int argc, char *argv[])
   string mtx;
   json measurements;
 
+  json matrices_info;
+
   while (getline (list, mtx))
   {
     fmt::print ("Start loading matrix {}\n", mtx);
@@ -259,7 +261,14 @@ int main(int argc, char *argv[])
       continue; // Don't store result for matrices that couldn't be computed on GPU
     measurements["float"][mtx] = float_result;
     measurements["double"][mtx] = double_result;
+
+    matrices_info[mtx]["nnz"] = reader.matrix ().meta.non_zero_count;
+    matrices_info[mtx]["rows"] = reader.matrix ().meta.rows_count;
+    matrices_info[mtx]["cols"] = reader.matrix ().meta.cols_count;
   }
+
+  ofstream mi_os ("matrices_info.json");
+  mi_os << matrices_info.dump (2);
 
   for (auto &precision: { "float", "double" })
   {
