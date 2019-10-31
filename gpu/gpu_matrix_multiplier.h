@@ -6,13 +6,14 @@
 #define MATRIX_FORMAT_PERFORMANCE_GPU_MATRIX_MULTIPLIER_H
 
 #include "matrix_converter.h"
+#include "measurement_class.h"
 
 template <typename T>
 class resizable_gpu_memory;
 
 /// Perform y = Ax
 template <typename data_type>
-double gpu_csr_spmv (
+measurement_class gpu_csr_spmv (
     const csr_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -24,7 +25,7 @@ double gpu_csr_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
-double gpu_csr_vector_spmv (
+measurement_class gpu_csr_vector_spmv (
     const csr_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -36,7 +37,7 @@ double gpu_csr_vector_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
-double gpu_ell_spmv (
+measurement_class gpu_ell_spmv (
     const ell_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -47,7 +48,7 @@ double gpu_ell_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
-double gpu_coo_spmv (
+measurement_class gpu_coo_spmv (
     const coo_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -59,7 +60,7 @@ double gpu_coo_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
-double gpu_hybrid_spmv (
+measurement_class gpu_hybrid_spmv (
     const hybrid_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A_ell,
     resizable_gpu_memory<data_type> &A_coo,
@@ -73,7 +74,7 @@ double gpu_hybrid_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
-double gpu_hybrid_atomic_spmv (
+measurement_class gpu_hybrid_atomic_spmv (
     const hybrid_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A_ell,
     resizable_gpu_memory<data_type> &A_coo,
@@ -87,7 +88,7 @@ double gpu_hybrid_atomic_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
-double gpu_hybrid_cpu_coo_spmv (
+measurement_class gpu_hybrid_cpu_coo_spmv (
     const hybrid_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A_ell,
     resizable_gpu_memory<unsigned int> &ell_col_ids,

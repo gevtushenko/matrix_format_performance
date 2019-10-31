@@ -18,7 +18,7 @@
 using namespace std;
 
 template<typename data_type>
-double cpu_csr_spmv_single_thread_naive (
+measurement_class cpu_csr_spmv_single_thread_naive (
     const csr_matrix_class<data_type> &matrix,
     data_type *x,
     data_type *y)
@@ -43,11 +43,25 @@ double cpu_csr_spmv_single_thread_naive (
   }
 
   auto end = chrono::system_clock::now ();
-  return chrono::duration<double> (end - begin).count ();
+  const double elapsed = chrono::duration<double> (end - begin).count ();
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "CPU CSR",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
 }
 
 template<typename data_type>
-double cpu_csr_spmv_single_thread_naive_with_reduce_order (
+measurement_class cpu_csr_spmv_single_thread_naive_with_reduce_order (
     const csr_matrix_class<data_type> &matrix,
     data_type *x,
     data_type *y)
@@ -89,11 +103,24 @@ double cpu_csr_spmv_single_thread_naive_with_reduce_order (
   }
 
   auto end = chrono::system_clock::now ();
-  return chrono::duration<double> (end - begin).count ();
+  const double elapsed = chrono::duration<double> (end - begin).count ();
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "CPU CSR Reduce order",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
 }
 
 template<typename data_type>
-void cpu_csr_spmv_multi_thread_naive_kernel (
+measurement_class cpu_csr_spmv_multi_thread_naive_kernel (
     const data_type *x,
     data_type *y,
     const unsigned int *row_ptr,
@@ -115,7 +142,7 @@ void cpu_csr_spmv_multi_thread_naive_kernel (
 }
 
 template<typename data_type>
-double cpu_csr_spmv_multi_thread_naive (
+measurement_class cpu_csr_spmv_multi_thread_naive (
     const csr_matrix_class<data_type > &matrix,
     data_type *x,
     data_type *y)
@@ -156,10 +183,22 @@ double cpu_csr_spmv_multi_thread_naive (
   double max_time = 0.0;
   for (unsigned int i = 0; i < threads_count; i++)
     max_time = std::max (max_time, times[i]);
-  return max_time;
-}
 
-#include "vectorclass.h"
+  const double elapsed = max_time;
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "CPU CSR Parallel",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
+}
 
 template<typename data_type>
 void cpu_ell_spmv_multi_thread_naive_kernel (
@@ -185,7 +224,7 @@ void cpu_ell_spmv_multi_thread_naive_kernel (
 }
 
 template<typename data_type>
-double cpu_ell_spmv_multi_thread_naive (
+measurement_class cpu_ell_spmv_multi_thread_naive (
     const ell_matrix_class<data_type > &matrix,
     data_type *x,
     data_type *y)
@@ -213,13 +252,19 @@ double cpu_ell_spmv_multi_thread_naive (
     thread.join ();
 
   auto end = chrono::system_clock::now ();
-  return chrono::duration<double> (end - begin).count ();
+  const double elapsed = chrono::duration<double> (end - begin).count ();
+
+  return measurement_class (
+      "TODO",
+      elapsed,
+      1,
+      1);
 }
 
 #define INSTANCTIATE(TYPE) \
-  template double cpu_csr_spmv_single_thread_naive<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y); \
-  template double cpu_csr_spmv_single_thread_naive_with_reduce_order<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y); \
-  template double cpu_csr_spmv_multi_thread_naive<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y);
+  template measurement_class cpu_csr_spmv_single_thread_naive<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y); \
+  template measurement_class cpu_csr_spmv_single_thread_naive_with_reduce_order<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y); \
+  template measurement_class cpu_csr_spmv_multi_thread_naive<TYPE> (const csr_matrix_class<TYPE> &matrix, TYPE *x, TYPE *y);
 
 INSTANCTIATE(float)
 INSTANCTIATE(double)

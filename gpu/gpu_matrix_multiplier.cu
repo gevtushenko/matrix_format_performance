@@ -71,7 +71,7 @@ __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
 }
 
 template <typename data_type>
-double gpu_csr_spmv (
+measurement_class gpu_csr_spmv (
     const csr_matrix_class<data_type > &matrix,
     resizable_gpu_memory<data_type > &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -134,7 +134,21 @@ double gpu_csr_spmv (
 
   compare_results (y_size, reusable_vector, reference_y);
 
-  return milliseconds / 1000;
+  const double elapsed = milliseconds / 1000;
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "GPU CSR",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
 }
 
 
@@ -192,7 +206,7 @@ __global__ void csr_spmv_vector_kernel (
 }
 
 template <typename data_type>
-double gpu_csr_vector_spmv (
+measurement_class gpu_csr_vector_spmv (
     const csr_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -259,7 +273,21 @@ double gpu_csr_vector_spmv (
 
   compare_results (y_size, reusable_vector, reference_y);
 
-  return milliseconds / 1000;
+  const double elapsed = milliseconds / 1000;
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "GPU CSR (vector)",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
 }
 
 
@@ -287,7 +315,7 @@ __global__ void ell_spmv_kernel (
 }
 
 template <typename data_type>
-double gpu_ell_spmv (
+measurement_class gpu_ell_spmv (
     const ell_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -348,7 +376,21 @@ double gpu_ell_spmv (
 
   compare_results (y_size, reusable_vector, reference_y);
 
-  return milliseconds / 1000;
+  const double elapsed = milliseconds / 1000;
+
+  const unsigned int n_elements = matrix.elements_in_rows * matrix.meta.rows_count;
+  const size_t data_bytes = n_elements * sizeof (data_type);
+  const size_t x_bytes = n_elements * sizeof (data_type);
+  const size_t col_ids_bytes = n_elements * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = n_elements * 2; // + and * per element
+
+  return measurement_class (
+      "GPU ELL",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + y_bytes,
+      operations_count);
 }
 
 
@@ -371,7 +413,7 @@ __global__ void coo_spmv_kernel (
 }
 
 template <typename data_type>
-double gpu_coo_spmv (
+measurement_class gpu_coo_spmv (
     const coo_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,
@@ -435,7 +477,20 @@ double gpu_coo_spmv (
 
   compare_results (y_size, reusable_vector, reference_y);
 
-  return milliseconds / 1000;
+  const double elapsed = milliseconds / 1000;
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+  return measurement_class (
+      "GPU COO",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
 }
 
 /*
@@ -516,7 +571,7 @@ sliced_coo_kernel_32(
  */
 
 template <typename data_type>
-double gpu_hybrid_spmv (
+measurement_class gpu_hybrid_spmv (
     const hybrid_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A_ell,
     resizable_gpu_memory<data_type> &A_coo,
@@ -610,7 +665,12 @@ double gpu_hybrid_spmv (
 
   compare_results (y_size, reusable_vector, reference_y);
 
-  return milliseconds / 1000;
+  const double elapsed = milliseconds / 1000;
+  return measurement_class (
+      "GPU Hybrid (TODO)",
+      elapsed,
+      1,
+      1);
 }
 
 template <typename data_type>
@@ -649,7 +709,7 @@ __global__ void hybrid_spmv_kernel (
 }
 
 template <typename data_type>
-double gpu_hybrid_atomic_spmv (
+measurement_class gpu_hybrid_atomic_spmv (
     const hybrid_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A_ell,
     resizable_gpu_memory<data_type> &A_coo,
@@ -734,7 +794,12 @@ double gpu_hybrid_atomic_spmv (
 
   compare_results (y_size, reusable_vector, reference_y);
 
-  return milliseconds / 1000;
+  const double elapsed = milliseconds / 1000;
+  return measurement_class (
+      "GPU Hybrid (atomic TODO)",
+      elapsed,
+      1,
+      1);
 }
 
 /// Perform y = y + x
@@ -751,7 +816,7 @@ __global__ void vec_add (
 }
 
 template <typename data_type>
-double gpu_hybrid_cpu_coo_spmv (
+measurement_class gpu_hybrid_cpu_coo_spmv (
     const hybrid_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A_ell,
     resizable_gpu_memory<unsigned int> &ell_col_ids,
@@ -850,38 +915,43 @@ double gpu_hybrid_cpu_coo_spmv (
 
   compare_results (y_size, reusable_vector, reference_y);
 
-  return milliseconds / 1000;
+  const double elapsed = milliseconds / 1000;
+  return measurement_class (
+      "GPU Hybrid (CPU COO TODO)",
+      elapsed,
+      1,
+      1);
 }
 
 #define INSTANTIATE(data_type)                                                 \
-  template double gpu_csr_spmv<data_type>(                                     \
+  template measurement_class gpu_csr_spmv<data_type>(                          \
       const csr_matrix_class<data_type> &matrix,                               \
       resizable_gpu_memory<data_type> &A,                                      \
       resizable_gpu_memory<unsigned int> &col_ids,                             \
       resizable_gpu_memory<unsigned int> &row_ptr,                             \
       resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
       data_type *reusable_vector, const data_type *reference_y);               \
-  template double gpu_csr_vector_spmv<data_type>(                              \
+  template measurement_class gpu_csr_vector_spmv<data_type>(                   \
       const csr_matrix_class<data_type> &matrix,                               \
       resizable_gpu_memory<data_type> &A,                                      \
       resizable_gpu_memory<unsigned int> &col_ids,                             \
       resizable_gpu_memory<unsigned int> &row_ptr,                             \
       resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
       data_type *reusable_vector, const data_type *reference_y);               \
-  template double gpu_ell_spmv<data_type>(                                     \
+  template measurement_class gpu_ell_spmv<data_type>(                          \
       const ell_matrix_class<data_type> &matrix,                               \
       resizable_gpu_memory<data_type> &A,                                      \
       resizable_gpu_memory<unsigned int> &col_ids,                             \
       resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
       data_type *reusable_vector, const data_type *reference_y);               \
-  template double gpu_coo_spmv<data_type>(                                     \
+  template measurement_class gpu_coo_spmv<data_type>(                          \
       const coo_matrix_class<data_type> &matrix,                               \
       resizable_gpu_memory<data_type> &A,                                      \
       resizable_gpu_memory<unsigned int> &col_ids,                             \
       resizable_gpu_memory<unsigned int> &row_ids,                             \
       resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
       data_type *reusable_vector, const data_type *reference_y);               \
-  template double gpu_hybrid_spmv<data_type>(                                  \
+  template measurement_class gpu_hybrid_spmv<data_type>(                       \
       const hybrid_matrix_class<data_type> &matrix,                            \
       resizable_gpu_memory<data_type> &A_ell,                                  \
       resizable_gpu_memory<data_type> &A_coo,                                  \
@@ -890,7 +960,7 @@ double gpu_hybrid_cpu_coo_spmv (
       resizable_gpu_memory<unsigned int> &coo_row_ids,                         \
       resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
       data_type *reusable_vector, const data_type *reference_y);               \
-  template double gpu_hybrid_atomic_spmv<data_type>(                           \
+  template measurement_class gpu_hybrid_atomic_spmv<data_type>(                \
       const hybrid_matrix_class<data_type> &matrix,                            \
       resizable_gpu_memory<data_type> &A_ell,                                  \
       resizable_gpu_memory<data_type> &A_coo,                                  \
@@ -899,7 +969,7 @@ double gpu_hybrid_cpu_coo_spmv (
       resizable_gpu_memory<unsigned int> &coo_row_ids,                         \
       resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
       data_type *reusable_vector, const data_type *reference_y);               \
-  template double gpu_hybrid_cpu_coo_spmv<data_type>(                          \
+  template measurement_class gpu_hybrid_cpu_coo_spmv<data_type>(               \
       const hybrid_matrix_class<data_type> &matrix,                            \
       resizable_gpu_memory<data_type> &A_ell,                                  \
       resizable_gpu_memory<unsigned int> &ell_col_ids,                         \

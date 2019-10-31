@@ -5,9 +5,11 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
+#include <utility>
 
 #include "json.hpp"
 
+#include "measurement_class.h"
 #include "matrix_market_reader.h"
 #include "resizable_gpu_memory.h"
 #include "matrix_converter.h"
@@ -47,9 +49,10 @@ public:
     fmt::print (fmt::fg (color), "{2:<{0}.{1}g}   ", time_width, time_precision, time);
   }
 
-  void print_time (const std::string &label, double time) const
+  void print_time (const measurement_class &measurement) const
   {
-    fmt::print (fmt::fg (fmt::color::yellow), "{0:<25}", label);
+    const double time = measurement.get_elapsed ();
+    fmt::print (fmt::fg (fmt::color::yellow), "{0:<25}", measurement.get_format ());
     fmt::print (":  ");
     add_time (time, fmt::color::white);
     add_time (speedup (time), fmt::color::green);
@@ -70,9 +73,9 @@ public:
 };
 
 template <typename data_type>
-unordered_map<string, double> perform_measurement (const matrix_market::reader &reader, size_t free_memory)
+vector<measurement_class> perform_measurement (const matrix_market::reader &reader, size_t free_memory)
 {
-  unordered_map<string, double> measurements;
+  vector<measurement_class> measurements;
 
   unique_ptr<csr_matrix_class<data_type>> csr_matrix;
   unique_ptr<ell_matrix_class<data_type>> ell_matrix;
@@ -109,46 +112,26 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
 
   double cpu_naive_time {};
 
-  const unsigned int measurements_count = 10;
-
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_single_thread_naive");
-
-    for (unsigned int measurement = 0; measurement < measurements_count; measurement++)
-      cpu_naive_time += cpu_csr_spmv_single_thread_naive (*csr_matrix, x.get (), reference_answer.get ());
-    cpu_naive_time /= measurements_count;
+    auto cpu_naive = cpu_csr_spmv_single_thread_naive (*csr_matrix, x.get (), reference_answer.get ());
+    measurements.push_back (cpu_naive);
+    cpu_naive_time = cpu_naive.get_elapsed ();
   }
-
   time_printer single_core_timer (cpu_naive_time);
-  single_core_timer.print_time ("CPU CSR", cpu_naive_time);
-  measurements["CPU CSR"] = cpu_naive_time;
+  single_core_timer.print_time (measurements.back ());
 
   double cpu_parallel_naive_time {};
 
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
-    for (unsigned int measurement = 0; measurement < measurements_count; measurement++)
-      cpu_parallel_naive_time += cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ());
-    cpu_parallel_naive_time /= measurements_count;
-    single_core_timer.print_time ("CPU CSR Parallel", cpu_parallel_naive_time);
-    measurements["CPU CSR Parallel"] = cpu_parallel_naive_time;
+    auto cpu_parallel_naive = cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ());
+    measurements.push_back (cpu_parallel_naive);
+    cpu_parallel_naive_time = cpu_parallel_naive.get_elapsed ();
+    single_core_timer.print_time (cpu_parallel_naive);
   }
 
   time_printer multi_core_timer (cpu_naive_time, cpu_parallel_naive_time);
-
-  if (0)
-  {
-    auto duration = cpp_itt::create_event_duration ("cpu_ell_spmv_multi_thread_naive");
-    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_naive (*ell_matrix, x.get (), cpu_y.get ());
-    cout << "CPU Parallel ELL: " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
-  }
-
-  if (0)
-  {
-    auto duration = cpp_itt::create_event_duration ("cpu_ell_spmv_multi_thread_naive");
-    auto cpu_parallel_naive_ell_time = cpu_ell_spmv_multi_thread_avx2 (*ell_matrix, x.get (), cpu_y.get (), reference_answer.get ());
-    cout << "CPU Parallel ELL (AVX2): " << cpu_parallel_naive_ell_time << " (SSCPU = " << cpu_naive_time / cpu_parallel_naive_ell_time << ")" << endl;
-  }
 
   /// GPU Reusable memory
   resizable_gpu_memory<data_type> A, x_gpu, y;
@@ -160,27 +143,27 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
 
     {
       auto gpu_time = gpu_csr_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-      multi_core_timer.print_time ("GPU CSR", gpu_time);
-      measurements["GPU CSR"] = gpu_time;
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
     }
 
     {
       cpu_csr_spmv_single_thread_naive_with_reduce_order (*csr_matrix, x.get (), reference_answer_for_reduce_order.get ());
       auto gpu_time = gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ());
-      multi_core_timer.print_time ("GPU CSR (vector)", gpu_time);
-      measurements["GPU CSR (vector)"] = gpu_time;
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
     }
 
     {
       auto gpu_time = gpu_ell_spmv<data_type> (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
-      multi_core_timer.print_time ("GPU ELL", gpu_time);
-      measurements["GPU ELL"] = gpu_time;
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
     }
 
     {
       auto gpu_time = gpu_coo_spmv<data_type> (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-      multi_core_timer.print_time ("GPU COO", gpu_time);
-      measurements["GPU COO"] = gpu_time;
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
     }
 
     // if (0)
@@ -200,30 +183,38 @@ unordered_map<string, double> perform_measurement (const matrix_market::reader &
       std::string percent_str = std::to_string ((int)(percent * 100));
 
       {
-        const string label = "GPU HYBRID " + percent_str;
+        // const string label = "GPU HYBRID " + percent_str;
         auto gpu_time = gpu_hybrid_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-        multi_core_timer.print_time (label, gpu_time);
-        measurements[label] = gpu_time;
+        multi_core_timer.print_time (gpu_time);
+        measurements.push_back (gpu_time);
       }
 
       {
-        const string label = "GPU HYBRID ATOMIC " + percent_str;
+        // const string label = "GPU HYBRID ATOMIC " + percent_str;
         auto gpu_time = gpu_hybrid_atomic_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-        multi_core_timer.print_time (label, gpu_time);
-        measurements[label] = gpu_time;
+        multi_core_timer.print_time (gpu_time);
+        measurements.push_back (gpu_time);
       }
 
       {
-        const string label = "GPU HYBRID CPU COO " + percent_str;
+        // const string label = "GPU HYBRID CPU COO " + percent_str;
         resizable_gpu_memory<data_type> tmp;
         auto gpu_time = gpu_hybrid_cpu_coo_spmv<data_type> (hybrid_matrix, A, col_ids, x_gpu, y, tmp, cpu_y.get (), x.get (), reference_answer.get ());
-        multi_core_timer.print_time (label, gpu_time);
-        measurements[label] = gpu_time;
+        multi_core_timer.print_time (gpu_time);
+        measurements.push_back (gpu_time);
       }
     }
   }
 
   return measurements;
+}
+
+string get_filename (const string &path)
+{
+  size_t i = path.rfind ('/', path.length ());
+  if (i != string::npos)
+    return (path.substr (i + 1, path.length () - i));
+  return path;
 }
 
 int main(int argc, char *argv[])
@@ -243,6 +234,8 @@ int main(int argc, char *argv[])
 
   string mtx;
   json measurements;
+  json effective_bandwidth;
+  json computational_throughput;
 
   json matrices_info;
 
@@ -254,13 +247,24 @@ int main(int argc, char *argv[])
     matrix_market::reader reader (is);
     cout << "Complete loading" << endl;
 
-    auto float_result = perform_measurement<float> (reader, free_gpu_mem);
-    auto double_result = perform_measurement<double> (reader, free_gpu_mem);
+    mtx = get_filename (mtx);
 
-    if (float_result.empty () || double_result.empty ())
+    unordered_map<string, vector<measurement_class>> results;
+    results["float"] = perform_measurement<float> (reader, free_gpu_mem);
+    results["double"] = perform_measurement<double> (reader, free_gpu_mem);
+
+    if (results["float"].empty () || results["double"].empty ())
       continue; // Don't store result for matrices that couldn't be computed on GPU
-    measurements["float"][mtx] = float_result;
-    measurements["double"][mtx] = double_result;
+
+    for (auto &[type, result]: results)
+    {
+      for (auto &measurement: result)
+      {
+        measurements[type][mtx][measurement.get_format ()] = measurement.get_elapsed ();
+        effective_bandwidth[type][mtx][measurement.get_format ()] = measurement.get_effective_bandwidth ();
+        computational_throughput[type][mtx][measurement.get_format ()] = measurement.get_computational_throughput ();
+      }
+    }
 
     matrices_info[mtx]["nnz"] = reader.matrix ().meta.non_zero_count;
     matrices_info[mtx]["rows"] = reader.matrix ().meta.rows_count;
@@ -272,8 +276,20 @@ int main(int argc, char *argv[])
 
   for (auto &precision: { "float", "double" })
   {
-    ofstream os (std::string (precision) + ".json");
-    os << measurements[precision].dump (2);
+    {
+      ofstream os (std::string (precision) + ".json");
+      os << measurements[precision].dump (2);
+    }
+
+    {
+      ofstream os (std::string (precision) + "_effective_bandwidth.json");
+      os << effective_bandwidth[precision].dump (2);
+    }
+
+    {
+      ofstream os (std::string (precision) + "_computational_throughput.json");
+      os << computational_throughput[precision].dump (2);
+    }
   }
 
   // inf -> /home/egi/Documents/data/matrices/matrix_market/unco/raw/lp_scsd8/lp_scsd8.mtx
