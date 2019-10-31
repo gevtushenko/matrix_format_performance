@@ -15,6 +15,7 @@ def load_data():
     matrices_info = pd.read_json('../results/matrices_info.json').T
     source = pd.read_json('../results/float.json').T
     merged = pd.merge(left=source, right=matrices_info, left_index=True, right_index=True)
+    merged['nnzpr'] = merged['nnz'] / merged['rows']
     return source, merged
 
 
@@ -48,9 +49,6 @@ print(speedup.nlargest(5, 'GPU HYBRID 0')[['CPU CSR', 'GPU HYBRID 0', 'nnz']])
 # sns.distplot(speedup['CPU CSR Parallel'])
 # sns.distplot(speedup['GPU COO'])
 
-
-nnz_limit = 1e+3
-# speedup = speedup[speedup['nnz'] < nnz_limit]
 
 sns.jointplot(data=speedup, x='nnz', y='GPU CSR', kind='reg')
 sns.jointplot(data=speedup, x='nnz', y='GPU ELL', kind='reg')
