@@ -155,6 +155,12 @@ vector<measurement_class> perform_measurement (const matrix_market::reader &read
     }
 
     {
+      auto gpu_time = gpu_csr_cusparse_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
+    }
+
+    {
       auto gpu_time = gpu_ell_spmv<data_type> (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
       measurements.push_back (gpu_time);
@@ -176,6 +182,7 @@ vector<measurement_class> perform_measurement (const matrix_market::reader &read
 
     hybrid_matrix_class<data_type> hybrid_matrix (*csr_matrix);
 
+    if (0)
     for (double percent = 0.0; percent <= 1.0; percent += 0.35)
     {
       hybrid_matrix.allocate(*csr_matrix, percent);

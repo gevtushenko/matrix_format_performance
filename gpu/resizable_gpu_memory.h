@@ -20,6 +20,11 @@ public:
   resizable_gpu_memory (const resizable_gpu_memory &) = delete;
   resizable_gpu_memory &operator= (const resizable_gpu_memory &) = delete;
 
+  void clear ()
+  {
+    internal_free (data);
+  }
+
   void resize (size_t new_size)
   {
     if (new_size > size)

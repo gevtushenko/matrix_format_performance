@@ -6,6 +6,7 @@
 #include "resizable_gpu_memory.h"
 
 #include <cuda_runtime.h>
+#include <cusparse_v2.h>
 #include <iostream>
 #include <limits>
 
@@ -82,7 +83,6 @@ measurement_class gpu_csr_spmv (
     data_type*reusable_vector,
     const data_type*reference_y)
 {
-
   auto &meta = matrix.meta;
 
   const size_t A_size = matrix.get_matrix_size ();
@@ -151,6 +151,129 @@ measurement_class gpu_csr_spmv (
       operations_count);
 }
 
+void cusparse_csrmv (
+    cusparseHandle_t &handle,
+    cusparseMatDescr_t descr_A,
+    const float *A,
+    const unsigned int *row_ptr,
+    const unsigned int *col_ids,
+    const matrix_market::matrix_class::matrix_meta &meta,
+    float * x,
+    float * y)
+{
+  const float alpha = 1.0;
+  const float beta = 0.0;
+  cusparseScsrmv (
+      handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+      meta.rows_count, meta.cols_count, meta.non_zero_count,
+      &alpha, descr_A,
+      A, reinterpret_cast<const int *> (row_ptr), reinterpret_cast<const int *> (col_ids),
+      x, &beta, y);
+}
+
+void cusparse_csrmv (
+    cusparseHandle_t &handle,
+    cusparseMatDescr_t descr_A,
+    const double *A,
+    const unsigned int *row_ptr,
+    const unsigned int *col_ids,
+    const matrix_market::matrix_class::matrix_meta &meta,
+    double * x,
+    double * y)
+{
+  const double alpha = 1.0;
+  const double beta = 0.0;
+  cusparseDcsrmv (
+      handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+      meta.rows_count, meta.cols_count, meta.non_zero_count,
+      &alpha, descr_A,
+      A, reinterpret_cast<const int *> (row_ptr), reinterpret_cast<const int *> (col_ids),
+      x, &beta, y);
+}
+
+template <typename data_type>
+measurement_class gpu_csr_cusparse_spmv (
+    const csr_matrix_class<data_type> &matrix,
+    resizable_gpu_memory<data_type> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<unsigned int> &row_ptr,
+    resizable_gpu_memory<data_type> &x,
+    resizable_gpu_memory<data_type> &y,
+
+    data_type*reusable_vector,
+    const data_type*reference_y)
+{
+  auto &meta = matrix.meta;
+
+  const size_t A_size = matrix.get_matrix_size ();
+  const size_t col_ids_size = matrix.meta.non_zero_count;
+  const size_t row_ptr_size = matrix.meta.rows_count + 1;
+  const size_t x_size = matrix.meta.cols_count;
+  const size_t y_size = matrix.meta.rows_count;
+
+  A.resize (A_size);
+  col_ids.resize (col_ids_size);
+  row_ptr.resize (row_ptr_size);
+  x.resize (x_size);
+  y.resize (y_size);
+
+  cudaMemcpy (A.get (), matrix.data.get (), A_size * sizeof (data_type), cudaMemcpyHostToDevice);
+  cudaMemcpy (col_ids.get (), matrix.columns.get (), col_ids_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
+  cudaMemcpy (row_ptr.get (), matrix.row_ptr.get (), row_ptr_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
+
+  cusparseHandle_t handle;
+  cusparseCreate (&handle);
+
+  cusparseMatDescr_t descr_A;
+  cusparseCreateMatDescr (&descr_A);
+  cusparseSetMatType (descr_A, CUSPARSE_MATRIX_TYPE_GENERAL);
+  cusparseSetMatIndexBase (descr_A, CUSPARSE_INDEX_BASE_ZERO);
+
+  {
+    dim3 block_size = dim3 (512);
+    dim3 grid_size {};
+
+    grid_size.x = (x_size + block_size.x - 1) / block_size.x;
+    fill_vector<data_type><<<grid_size, block_size>>> (x_size, x.get (), 1.0);
+  }
+
+  cudaEvent_t start, stop;
+  cudaEventCreate (&start);
+  cudaEventCreate (&stop);
+
+  cudaDeviceSynchronize ();
+  cudaEventRecord (start);
+
+  cusparse_csrmv (handle, descr_A, A.get (), row_ptr.get (), col_ids.get (), meta, x.get (), y.get ());
+
+  cudaEventRecord (stop);
+  cudaEventSynchronize (stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime (&milliseconds, start, stop);
+
+  cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
+
+  compare_results (y_size, reusable_vector, reference_y);
+
+  cusparseDestroy (handle);
+
+  const double elapsed = milliseconds / 1000;
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "GPU CSR (cuSparse)",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
+}
 
 #define FULL_WARP_MASK 0xFFFFFFFF
 
@@ -358,7 +481,7 @@ measurement_class gpu_ell_spmv (
   cudaDeviceSynchronize ();
   cudaEventRecord (start);
   {
-    dim3 block_size = dim3 (512);
+    dim3 block_size = dim3 (256);
     dim3 grid_size {};
 
     grid_size.x = (meta.rows_count + block_size.x - 1) / block_size.x;
@@ -925,6 +1048,13 @@ measurement_class gpu_hybrid_cpu_coo_spmv (
 
 #define INSTANTIATE(data_type)                                                 \
   template measurement_class gpu_csr_spmv<data_type>(                          \
+      const csr_matrix_class<data_type> &matrix,                               \
+      resizable_gpu_memory<data_type> &A,                                      \
+      resizable_gpu_memory<unsigned int> &col_ids,                             \
+      resizable_gpu_memory<unsigned int> &row_ptr,                             \
+      resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
+      data_type *reusable_vector, const data_type *reference_y);               \
+  template measurement_class gpu_csr_cusparse_spmv<data_type>(                 \
       const csr_matrix_class<data_type> &matrix,                               \
       resizable_gpu_memory<data_type> &A,                                      \
       resizable_gpu_memory<unsigned int> &col_ids,                             \
