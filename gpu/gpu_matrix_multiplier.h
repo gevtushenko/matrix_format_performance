@@ -25,6 +25,18 @@ measurement_class gpu_csr_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
+measurement_class gpu_csr_adaptive_spmv (
+    const csr_matrix_class<data_type> &matrix,
+    resizable_gpu_memory<data_type> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<unsigned int> &row_ptr,
+    resizable_gpu_memory<data_type> &x,
+    resizable_gpu_memory<data_type> &y,
+
+    data_type*reusable_vector,
+    const data_type*reference_y);
+
+template <typename data_type>
 measurement_class gpu_csr_cusparse_spmv (
     const csr_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
