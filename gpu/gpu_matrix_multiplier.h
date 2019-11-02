@@ -73,7 +73,32 @@ measurement_class gpu_ell_spmv (
     const data_type*reference_y);
 
 template <typename data_type>
+measurement_class gpu_ell_cusp_spmv (
+    const std::string &mtx,
+    const ell_matrix_class<data_type> &matrix,
+    resizable_gpu_memory<data_type> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<data_type> &x,
+    resizable_gpu_memory<data_type> &y,
+
+    data_type*reusable_vector,
+    const data_type*reference_y);
+
+template <typename data_type>
 measurement_class gpu_coo_spmv (
+    const coo_matrix_class<data_type> &matrix,
+    resizable_gpu_memory<data_type> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<unsigned int> &row_ids,
+    resizable_gpu_memory<data_type> &x,
+    resizable_gpu_memory<data_type> &y,
+
+    data_type*reusable_vector,
+    const data_type*reference_y);
+
+template <typename data_type>
+measurement_class gpu_coo_cusp_spmv (
+    const std::string &mtx,
     const coo_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &col_ids,

@@ -176,7 +176,19 @@ vector<measurement_class> perform_measurement (
     }
 
     {
+      auto gpu_time = gpu_ell_cusp_spmv<data_type> (mtx, *ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
+    }
+
+    {
       auto gpu_time = gpu_coo_spmv<data_type> (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
+    }
+
+    {
+      auto gpu_time = gpu_coo_cusp_spmv<data_type> (mtx, *coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
       measurements.push_back (gpu_time);
     }
