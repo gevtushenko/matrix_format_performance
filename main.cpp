@@ -73,7 +73,10 @@ public:
 };
 
 template <typename data_type>
-vector<measurement_class> perform_measurement (const matrix_market::reader &reader, size_t free_memory)
+vector<measurement_class> perform_measurement (
+    const string &mtx,
+    const matrix_market::reader &reader,
+    size_t free_memory)
 {
   vector<measurement_class> measurements;
 
@@ -161,6 +164,12 @@ vector<measurement_class> perform_measurement (const matrix_market::reader &read
     }
 
     {
+      auto gpu_time = gpu_csr_cusp_spmv<data_type> (mtx, *csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
+    }
+
+    {
       auto gpu_time = gpu_ell_spmv<data_type> (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
       measurements.push_back (gpu_time);
@@ -182,7 +191,6 @@ vector<measurement_class> perform_measurement (const matrix_market::reader &read
 
     hybrid_matrix_class<data_type> hybrid_matrix (*csr_matrix);
 
-    if (0)
     for (double percent = 0.0; percent <= 1.0; percent += 0.35)
     {
       hybrid_matrix.allocate(*csr_matrix, percent);
@@ -254,11 +262,11 @@ int main(int argc, char *argv[])
     matrix_market::reader reader (is);
     cout << "Complete loading" << endl;
 
-    mtx = get_filename (mtx);
-
     unordered_map<string, vector<measurement_class>> results;
-    results["float"] = perform_measurement<float> (reader, free_gpu_mem);
-    results["double"] = perform_measurement<double> (reader, free_gpu_mem);
+    results["float"] = perform_measurement<float> (mtx, reader, free_gpu_mem);
+    results["double"] = perform_measurement<double> (mtx, reader, free_gpu_mem);
+
+    mtx = get_filename (mtx);
 
     if (results["float"].empty () || results["double"].empty ())
       continue; // Don't store result for matrices that couldn't be computed on GPU

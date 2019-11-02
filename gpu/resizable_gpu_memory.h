@@ -23,6 +23,7 @@ public:
   void clear ()
   {
     internal_free (data);
+    size = 0;
   }
 
   void resize (size_t new_size)

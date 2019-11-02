@@ -275,6 +275,83 @@ measurement_class gpu_csr_cusparse_spmv (
       operations_count);
 }
 
+#include <cusp/copy.h>
+#include <cusp/multiply.h>
+#include <cusp/csr_matrix.h>
+#include <cusp/io/matrix_market.h>
+
+template <typename data_type>
+measurement_class gpu_csr_cusp_spmv (
+    const std::string &mtx,
+    const csr_matrix_class<data_type> &matrix,
+    resizable_gpu_memory<data_type> &A,
+    resizable_gpu_memory<unsigned int> &col_ids,
+    resizable_gpu_memory<unsigned int> &row_ptr,
+    resizable_gpu_memory<data_type> &x,
+    resizable_gpu_memory<data_type> &y,
+
+    data_type*reusable_vector,
+    const data_type*reference_y)
+{
+  auto &meta = matrix.meta;
+
+  const size_t y_size = matrix.meta.rows_count;
+
+  // Reset memory
+  A.clear ();
+  col_ids.clear ();
+  row_ptr.clear ();
+  x.clear ();
+  y.clear ();
+
+  // allocate storage for solution (x) and right hand side (b)
+  cusp::array1d<data_type, cusp::host_memory> cusp_y_host (meta.rows_count, 0);
+  cusp::array1d<data_type, cusp::device_memory> cusp_y (meta.rows_count, 0);
+  cusp::array1d<data_type, cusp::device_memory> cusp_x (meta.cols_count, 1);
+
+  cusp::csr_matrix<int, data_type, cusp::device_memory> cusp_A;
+  cusp::io::read_matrix_market_file (cusp_A, mtx);
+
+  cudaEvent_t start, stop;
+  cudaEventCreate (&start);
+  cudaEventCreate (&stop);
+
+  cudaDeviceSynchronize ();
+  cudaEventRecord (start);
+
+  // kernel call here
+  cusp::multiply (cusp_A, cusp_x, cusp_y);
+
+  cudaEventRecord (stop);
+  cudaEventSynchronize (stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime (&milliseconds, start, stop);
+
+  cusp::copy (cusp_y, cusp_y_host);
+
+  for (unsigned int i = 0; i < y_size; i++)
+    reusable_vector[i] = cusp_y_host[i];
+
+  compare_results (y_size, reusable_vector, reference_y);
+
+  const double elapsed = milliseconds / 1000;
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "GPU CSR (cusp)",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
+}
+
 #define FULL_WARP_MASK 0xFFFFFFFF
 
 
@@ -1056,6 +1133,13 @@ measurement_class gpu_hybrid_cpu_coo_spmv (
       data_type *reusable_vector, const data_type *reference_y);               \
   template measurement_class gpu_csr_cusparse_spmv<data_type>(                 \
       const csr_matrix_class<data_type> &matrix,                               \
+      resizable_gpu_memory<data_type> &A,                                      \
+      resizable_gpu_memory<unsigned int> &col_ids,                             \
+      resizable_gpu_memory<unsigned int> &row_ptr,                             \
+      resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
+      data_type *reusable_vector, const data_type *reference_y);               \
+  template measurement_class gpu_csr_cusp_spmv<data_type>(                     \
+      const std::string &mtx, const csr_matrix_class<data_type> &matrix,       \
       resizable_gpu_memory<data_type> &A,                                      \
       resizable_gpu_memory<unsigned int> &col_ids,                             \
       resizable_gpu_memory<unsigned int> &row_ptr,                             \
