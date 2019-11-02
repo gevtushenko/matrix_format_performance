@@ -23,6 +23,8 @@
 #include "fmt/color.h"
 #include "fmt/core.h"
 
+#define CHECK_CUSP 0
+
 using namespace nlohmann;
 using namespace std;
 
@@ -163,6 +165,7 @@ vector<measurement_class> perform_measurement (
       measurements.push_back (gpu_time);
     }
 
+    if (CHECK_CUSP)
     {
       auto gpu_time = gpu_csr_cusp_spmv<data_type> (mtx, *csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
@@ -175,6 +178,7 @@ vector<measurement_class> perform_measurement (
       measurements.push_back (gpu_time);
     }
 
+    if (CHECK_CUSP)
     {
       auto gpu_time = gpu_ell_cusp_spmv<data_type> (mtx, *ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
@@ -187,6 +191,7 @@ vector<measurement_class> perform_measurement (
       measurements.push_back (gpu_time);
     }
 
+    if (CHECK_CUSP)
     {
       auto gpu_time = gpu_coo_cusp_spmv<data_type> (mtx, *coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
