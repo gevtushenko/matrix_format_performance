@@ -3,8 +3,9 @@
 //
 
 #include "csr_adaptive_spmv.h"
+#include "reduce.cuh"
 
-#define NNZ_PER_WG 32u
+#define NNZ_PER_WG 32u ///< Should be equal to warpSize
 
 template <typename data_type>
 __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
@@ -16,7 +17,8 @@ __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
 }
 
 template <typename data_type>
-__global__ void csr_stream_spmv_kernel (
+__global__ void csr_adaptive_spmv_kernel (
+    const unsigned int n_rows,
     const unsigned int *col_ids,
     const unsigned int *row_ptr,
     const unsigned int *row_blocks,
@@ -24,33 +26,62 @@ __global__ void csr_stream_spmv_kernel (
     const data_type *x,
     data_type *y)
 {
-  __shared__ data_type cache[NNZ_PER_WG];
-
-  const unsigned int i = threadIdx.x;
-
   const unsigned int block_row_begin = row_blocks[blockIdx.x];
   const unsigned int block_row_end = row_blocks[blockIdx.x + 1];
 
-  const unsigned int nnz = row_ptr[block_row_end] - row_ptr[block_row_begin];
-  const unsigned int block_data_begin = row_ptr[block_row_begin];
-  const unsigned int thread_data_begin = block_data_begin + i;
-
-  if (i < nnz)
-    cache[i] = data[thread_data_begin] * x[col_ids[thread_data_begin]];
-  __syncthreads ();
-
-  if ((block_row_begin + i) < block_row_end)
+  if (block_row_end - block_row_begin > 1)
   {
-    data_type dot = 0.0;
+    /// CSR-Stream case
 
-    for (unsigned int j = min (NNZ_PER_WG, (row_ptr[block_row_begin + i] - block_data_begin));
-         j < min (NNZ_PER_WG, (row_ptr[block_row_begin + i + 1] - block_data_begin));
-         j++)
+    __shared__ data_type cache[NNZ_PER_WG];
+    const unsigned int i = threadIdx.x;
+    const unsigned int nnz = row_ptr[block_row_end] - row_ptr[block_row_begin];
+    const unsigned int block_data_begin = row_ptr[block_row_begin];
+    const unsigned int thread_data_begin = block_data_begin + i;
+
+    if (i < nnz)
+      cache[i] = data[thread_data_begin] * x[col_ids[thread_data_begin]];
+    __syncwarp ();
+
+    if ((block_row_begin + i) < block_row_end)
     {
-      dot += cache[j];
+      data_type dot = 0.0;
+
+      for (unsigned int j = row_ptr[block_row_begin + i] - block_data_begin;
+           j < row_ptr[block_row_begin + i + 1] - block_data_begin;
+           j++)
+      {
+        dot += cache[j];
+      }
+
+      y[block_row_begin + i] = dot;
+    }
+  }
+  else
+  {
+    /// CSR-Vector case
+    const unsigned int thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int warp_id = thread_id / 32;
+    const unsigned int lane = thread_id % 32;
+
+    const unsigned int row = warp_id; ///< One warp per row
+
+    data_type dot = 0;
+    if (row < n_rows)
+    {
+      const unsigned int row_start = row_ptr[row];
+      const unsigned int row_end = row_ptr[row + 1];
+
+      for (unsigned int element = row_start + lane; element < row_end; element += 32)
+        dot += data[element] * x[col_ids[element]];
     }
 
-    y[block_row_begin + i] = dot;
+    dot = warp_reduce (dot);
+
+    if (lane == 0 && row < n_rows)
+    {
+      y[row] = dot;
+    }
   }
 }
 
@@ -156,8 +187,8 @@ measurement_class gpu_csr_adaptive_spmv (
 
     grid_size.x = blocks_count; // (meta.non_zero_count + block_size.x - 1) / block_size.x;
 
-    csr_stream_spmv_kernel<<<grid_size, block_size>>> (
-        col_ids.get (), row_ptr.get (), d_row_blocks, A.get (), x.get (), y.get ());
+    csr_adaptive_spmv_kernel<<<grid_size, block_size>>> (
+        meta.rows_count, col_ids.get (), row_ptr.get (), d_row_blocks, A.get (), x.get (), y.get ());
   }
   cudaEventRecord (stop);
   cudaEventSynchronize (stop);
