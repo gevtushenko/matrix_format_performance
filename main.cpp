@@ -14,6 +14,7 @@
 #include "resizable_gpu_memory.h"
 #include "matrix_converter.h"
 
+#include "csr_adaptive_spmv.h"
 #include "gpu_matrix_multiplier.h"
 #include "cpu_matrix_multiplier.h"
 
@@ -155,6 +156,12 @@ vector<measurement_class> perform_measurement (
     {
       cpu_csr_spmv_single_thread_naive_with_reduce_order (*csr_matrix, x.get (), reference_answer_for_reduce_order.get ());
       auto gpu_time = gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
+    }
+
+    {
+      auto gpu_time = gpu_csr_adaptive_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
       measurements.push_back (gpu_time);
     }

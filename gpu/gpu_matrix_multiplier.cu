@@ -4,6 +4,7 @@
 
 #include "gpu_matrix_multiplier.h"
 #include "resizable_gpu_memory.h"
+#include "reduce.cuh"
 
 #include <cuda_runtime.h>
 #include <cusparse_v2.h>
@@ -17,35 +18,6 @@
 #include <cusp/coo_matrix.h>
 #include <cusp/io/matrix_market.h>
 
-
-template <typename data_type>
-void compare_results (unsigned int y_size, const data_type *a, const data_type *b)
-{
-  data_type numerator = 0.0;
-  data_type denumerator = 0.0;
-
-  for (unsigned int i = 0; i < y_size; i++)
-  {
-    numerator += (a[i] - b[i]) * (a[i] - b[i]);
-    denumerator += b[i] * b[i];
-  }
-
-  const data_type error = numerator / denumerator;
-
-  if (error > 1e-9)
-  {
-    std::cerr << "ERROR: " << error << std::endl;
-
-    for (unsigned int i = 0; i < y_size; i++)
-    {
-      if (std::abs (a[i] - b[i]) > 1e-8)
-      {
-        std::cout << "a[i] = " << a[i] << "; b[i] = " << b[i] << std::endl;
-        break;
-      }
-    }
-  }
-}
 
 template <typename data_type>
 __global__ void csr_spmv_kernel (
@@ -158,143 +130,6 @@ measurement_class gpu_csr_spmv (
       elapsed,
       data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
       operations_count);
-}
-
-#define NNZ_PER_WG 32
-
-template <typename data_type>
-__global__ void csr_adaptive_spmv_kernel (
-    unsigned int n_rows,
-    const unsigned int *col_ids,
-    const unsigned int *row_ptr,
-    const unsigned int *row_delimiters,
-    const data_type *data,
-    const data_type *x,
-    data_type *y)
-{
-  unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
-
-  __shared__ data_type cache[NNZ_PER_WG];
-
-  if (row < n_rows)
-  {
-    const int row_start = row_ptr[row];
-    const int row_end = row_ptr[row + 1];
-
-    data_type dot = 0;
-    for (unsigned int element = row_start; element < row_end; element++)
-      dot += data[element] * x[col_ids[element]];
-    y[row] = dot;
-  }
-}
-
-template <typename data_type>
-measurement_class gpu_csr_adaptive_spmv (
-    const csr_matrix_class<data_type> &matrix,
-    resizable_gpu_memory<data_type> &A,
-    resizable_gpu_memory<unsigned int> &col_ids,
-    resizable_gpu_memory<unsigned int> &row_ptr,
-    resizable_gpu_memory<data_type> &x,
-    resizable_gpu_memory<data_type> &y,
-
-    data_type*reusable_vector,
-    const data_type*reference_y)
-{
-  /*
-  auto &meta = matrix.meta;
-
-  const size_t A_size = matrix.get_matrix_size ();
-  const size_t col_ids_size = matrix.meta.non_zero_count;
-  const size_t row_ptr_size = matrix.meta.rows_count + 1;
-  const size_t x_size = matrix.meta.cols_count;
-  const size_t y_size = matrix.meta.rows_count;
-
-  A.resize (A_size);
-  col_ids.resize (col_ids_size);
-  row_ptr.resize (row_ptr_size);
-  x.resize (x_size);
-  y.resize (y_size);
-
-  cudaMemcpy (A.get (), matrix.data.get (), A_size * sizeof (data_type), cudaMemcpyHostToDevice);
-  cudaMemcpy (col_ids.get (), matrix.columns.get (), col_ids_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
-  cudaMemcpy (row_ptr.get (), matrix.row_ptr.get (), row_ptr_size * sizeof (unsigned int), cudaMemcpyHostToDevice);
-
-  {
-    dim3 block_size = dim3 (512);
-    dim3 grid_size {};
-
-    grid_size.x = (x_size + block_size.x - 1) / block_size.x;
-    fill_vector<data_type><<<grid_size, block_size>>> (x_size, x.get (), 1.0);
-  }
-
-  // fill delimiters
-  std::unique_ptr<unsigned int[]> row_delimiters (new unsigned int[meta.rows_count]);
-  row_delimiters[0] = 0;
-
-  unsigned int nnz_sum {};
-  unsigned int current_wg = 1;
-  for (unsigned int i = 1; i < meta.rows_count; i++)
-  {
-    nnz_sum += matrix.row_ptr[i] - matrix.row_ptr[i - 1];
-
-    if (nnz_sum < NNZ_PER_WG)
-    {
-      continue;
-    }
-    else if (nnz_sum > NNZ_PER_WG)
-    {
-      row_delimiters[current_wg] = i - 1;
-      i--;
-      current_wg++;
-    }
-  }
-
-  unsigned int* d_row_delimiters {};
-  cudaMalloc (&d_row_delimiters, meta.rows_count * sizeof (unsigned int));
-  cudaMemcpy (d_row_delimiters, row_delimiters.get (), sizeof (unsigned int) * meta.rows_count, cudaMemcpyHostToDevice);
-
-  cudaEvent_t start, stop;
-  cudaEventCreate (&start);
-  cudaEventCreate (&stop);
-
-  cudaDeviceSynchronize ();
-  cudaEventRecord (start);
-  {
-    dim3 block_size = dim3 (512);
-    dim3 grid_size {};
-
-    grid_size.x = (meta.rows_count + block_size.x - 1) / block_size.x;
-
-    csr_adaptive_spmv_kernel<<<grid_size, block_size>>> (
-        meta.rows_count, col_ids.get (), row_ptr.get (), d_row_delimiters, A.get (), x.get (), y.get ());
-  }
-  cudaEventRecord (stop);
-  cudaEventSynchronize (stop);
-
-  float milliseconds = 0;
-  cudaEventElapsedTime (&milliseconds, start, stop);
-
-  cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
-  cudaFree (d_row_delimiters);
-
-  compare_results (y_size, reusable_vector, reference_y);
-
-  const double elapsed = milliseconds / 1000;
-
-  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
-  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
-  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
-  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
-  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
-
-  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
-
-  return measurement_class (
-      "GPU CSR",
-      elapsed,
-      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
-      operations_count);
-      */
 }
 
 void cusparse_csrmv (
@@ -492,26 +327,6 @@ measurement_class gpu_csr_cusp_spmv (
       data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
       operations_count);
 }
-
-#define FULL_WARP_MASK 0xFFFFFFFF
-
-
-template <class T>
-__device__ T warp_reduce (T val)
-{
-  /**
-   *  For a thread at lane X in the warp, __shfl_down_sync(FULL_MASK, val, offset) gets
-   *  the value of the val variable from the thread at lane X+offset of the same warp.
-   *  The data exchange is performed between registers, and more efficient than going
-   *  through shared memory, which requires a load, a store and an extra register to
-   *  hold the address.
-   */
-  for (int offset = warpSize / 2; offset > 0; offset /= 2)
-    val += __shfl_down_sync (FULL_WARP_MASK, val, offset);
-
-  return val;
-}
-
 
 template <typename data_type>
 __global__ void csr_spmv_vector_kernel (
@@ -1403,13 +1218,6 @@ measurement_class gpu_hybrid_cpu_coo_spmv (
 
 #define INSTANTIATE(data_type)                                                 \
   template measurement_class gpu_csr_spmv<data_type>(                          \
-      const csr_matrix_class<data_type> &matrix,                               \
-      resizable_gpu_memory<data_type> &A,                                      \
-      resizable_gpu_memory<unsigned int> &col_ids,                             \
-      resizable_gpu_memory<unsigned int> &row_ptr,                             \
-      resizable_gpu_memory<data_type> &x, resizable_gpu_memory<data_type> &y,  \
-      data_type *reusable_vector, const data_type *reference_y);               \
-  template measurement_class gpu_csr_adaptive_spmv<data_type>(                 \
       const csr_matrix_class<data_type> &matrix,                               \
       resizable_gpu_memory<data_type> &A,                                      \
       resizable_gpu_memory<unsigned int> &col_ids,                             \

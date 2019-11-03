@@ -6,6 +6,7 @@
 #define MATRIX_FORMAT_PERFORMANCE_MEASUREMENT_CLASS_H
 
 #include <string>
+#include <iostream>
 
 class measurement_class
 {
@@ -30,5 +31,35 @@ private:
   double computational_throughput {};
   std::string matrix_format;
 };
+
+template <typename data_type>
+void compare_results (unsigned int y_size, const data_type *a, const data_type *b)
+{
+  data_type numerator = 0.0;
+  data_type denumerator = 0.0;
+
+  for (unsigned int i = 0; i < y_size; i++)
+  {
+    numerator += (a[i] - b[i]) * (a[i] - b[i]);
+    denumerator += b[i] * b[i];
+  }
+
+  const data_type error = numerator / denumerator;
+
+  if (error > 1e-9)
+  {
+    std::cerr << "ERROR: " << error << std::endl;
+
+    for (unsigned int i = 0; i < y_size; i++)
+    {
+      if (std::abs (a[i] - b[i]) > 1e-8)
+      {
+        std::cerr << "a[i] = " << a[i] << "; b[i] = " << b[i] << std::endl;
+        break;
+      }
+    }
+  }
+}
+
 
 #endif // MATRIX_FORMAT_PERFORMANCE_MEASUREMENT_CLASS_H
