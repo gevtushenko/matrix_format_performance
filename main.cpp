@@ -213,34 +213,37 @@ vector<measurement_class> perform_measurement (
     resizable_gpu_memory<data_type> A_coo;
     resizable_gpu_memory<unsigned int> col_ids_coo;
 
-    hybrid_matrix_class<data_type> hybrid_matrix (*csr_matrix);
-
-    for (double percent = 0.0; percent <= 1.0; percent += 0.35)
+    if (0)
     {
-      hybrid_matrix.allocate(*csr_matrix, percent);
+      hybrid_matrix_class<data_type> hybrid_matrix (*csr_matrix);
 
-      std::string percent_str = std::to_string ((int)(percent * 100));
-
+      for (double percent = 0.0; percent <= 1.0; percent += 0.35)
       {
-        // const string label = "GPU HYBRID " + percent_str;
-        auto gpu_time = gpu_hybrid_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-        multi_core_timer.print_time (gpu_time);
-        measurements.push_back (gpu_time);
-      }
+        hybrid_matrix.allocate(*csr_matrix, percent);
 
-      {
-        // const string label = "GPU HYBRID ATOMIC " + percent_str;
-        auto gpu_time = gpu_hybrid_atomic_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
-        multi_core_timer.print_time (gpu_time);
-        measurements.push_back (gpu_time);
-      }
+        std::string percent_str = std::to_string ((int)(percent * 100));
 
-      {
-        // const string label = "GPU HYBRID CPU COO " + percent_str;
-        resizable_gpu_memory<data_type> tmp;
-        auto gpu_time = gpu_hybrid_cpu_coo_spmv<data_type> (hybrid_matrix, A, col_ids, x_gpu, y, tmp, cpu_y.get (), x.get (), reference_answer.get ());
-        multi_core_timer.print_time (gpu_time);
-        measurements.push_back (gpu_time);
+        {
+          // const string label = "GPU HYBRID " + percent_str;
+          auto gpu_time = gpu_hybrid_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+          multi_core_timer.print_time (gpu_time);
+          measurements.push_back (gpu_time);
+        }
+
+        {
+          // const string label = "GPU HYBRID ATOMIC " + percent_str;
+          auto gpu_time = gpu_hybrid_atomic_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+          multi_core_timer.print_time (gpu_time);
+          measurements.push_back (gpu_time);
+        }
+
+        {
+          // const string label = "GPU HYBRID CPU COO " + percent_str;
+          resizable_gpu_memory<data_type> tmp;
+          auto gpu_time = gpu_hybrid_cpu_coo_spmv<data_type> (hybrid_matrix, A, col_ids, x_gpu, y, tmp, cpu_y.get (), x.get (), reference_answer.get ());
+          multi_core_timer.print_time (gpu_time);
+          measurements.push_back (gpu_time);
+        }
       }
     }
   }

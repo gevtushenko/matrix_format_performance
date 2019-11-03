@@ -54,7 +54,7 @@ void compare_results (unsigned int y_size, const data_type *a, const data_type *
     {
       if (std::abs (a[i] - b[i]) > 1e-8)
       {
-        std::cerr << "a[i] = " << a[i] << "; b[i] = " << b[i] << std::endl;
+        std::cerr << "a[" << i << "] = " << a[i] << "; b[" << i << "] = " << b[i] << std::endl;
         break;
       }
     }
