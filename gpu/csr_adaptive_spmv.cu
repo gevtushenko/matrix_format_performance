@@ -5,7 +5,7 @@
 #include "csr_adaptive_spmv.h"
 #include "reduce.cuh"
 
-#define NNZ_PER_WG 256u ///< Should be equal to warpSize
+#define NNZ_PER_WG 128u ///< Should be equal to warpSize
 
 template <typename data_type>
 __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
@@ -66,7 +66,7 @@ __global__ void csr_adaptive_spmv_kernel (
 
     data_type dot = 0;
 
-    if (nnz <= NNZ_PER_WG)
+    if (nnz <= 32)
     {
       /// CSR-Vector case
       if (row < n_rows)
@@ -81,7 +81,7 @@ __global__ void csr_adaptive_spmv_kernel (
 
       dot = warp_reduce (dot);
 
-      if (lane == 0 && row < n_rows)
+      if (lane == 0 && warp_id == 0 && row < n_rows)
         y[row] = dot;
     }
     else
