@@ -59,6 +59,8 @@ void compare_results (unsigned int y_size, const data_type *a, const data_type *
       }
     }
   }
+
+  std::cerr.flush ();
 }
 
 
