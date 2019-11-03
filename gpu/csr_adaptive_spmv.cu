@@ -5,7 +5,7 @@
 #include "csr_adaptive_spmv.h"
 #include "reduce.cuh"
 
-#define NNZ_PER_WG 32u ///< Should be equal to warpSize
+#define NNZ_PER_WG 256u ///< Should be equal to warpSize
 
 template <typename data_type>
 __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
@@ -28,21 +28,21 @@ __global__ void csr_adaptive_spmv_kernel (
 {
   const unsigned int block_row_begin = row_blocks[blockIdx.x];
   const unsigned int block_row_end = row_blocks[blockIdx.x + 1];
+  const unsigned int nnz = row_ptr[block_row_end] - row_ptr[block_row_begin];
+
+  __shared__ data_type cache[NNZ_PER_WG];
 
   if (block_row_end - block_row_begin > 1)
   {
     /// CSR-Stream case
-    __shared__ data_type cache[NNZ_PER_WG];
     const unsigned int i = threadIdx.x;
     const unsigned int block_data_begin = row_ptr[block_row_begin];
     const unsigned int thread_data_begin = block_data_begin + i;
-    const unsigned int nnz = row_ptr[block_row_end] - row_ptr[block_row_begin];
 
     if (i < nnz)
       cache[i] = data[thread_data_begin] * x[col_ids[thread_data_begin]];
     __syncthreads ();
 
-    printf ("+");
     if ((block_row_begin + i) < block_row_end)
     {
       data_type dot = 0.0;
@@ -60,26 +60,61 @@ __global__ void csr_adaptive_spmv_kernel (
   }
   else
   {
-    const unsigned int thread_id = threadIdx.x;
-    const unsigned int lane = thread_id % 32;
-
-    /// CSR-Vector case
     const unsigned int row = block_row_begin;
+    const unsigned int warp_id = threadIdx.x / 32;
+    const unsigned int lane = threadIdx.x % 32;
 
     data_type dot = 0;
-    if (row < n_rows)
+
+    if (nnz <= NNZ_PER_WG)
     {
-      const unsigned int row_start = row_ptr[row];
-      const unsigned int row_end = row_ptr[row + 1];
+      /// CSR-Vector case
+      if (row < n_rows)
+      {
+        const unsigned int row_start = row_ptr[row];
+        const unsigned int row_end = row_ptr[row + 1];
+        unsigned int element = row_start + lane;
 
-      for (unsigned int element = row_start + threadIdx.x; element < row_end; element += blockDim.x)
-        dot += data[element] * x[col_ids[element]];
+        if (element < row_end)
+          dot = data[element] * x[col_ids[element]];
+      }
+
+      dot = warp_reduce (dot);
+
+      if (lane == 0 && row < n_rows)
+        y[row] = dot;
     }
+    else
+    {
+      /// CSR-VectorL case
+      if (row < n_rows)
+      {
+        const unsigned int row_start = row_ptr[row];
+        const unsigned int row_end = row_ptr[row + 1];
 
-    dot = warp_reduce (dot);
+        for (unsigned int element = row_start + threadIdx.x; element < row_end; element += blockDim.x)
+          dot += data[element] * x[col_ids[element]];
+      }
 
-    if (lane == 0 && row < n_rows)
-      atomicAdd (y + row, dot);
+      dot = warp_reduce (dot);
+
+      if (lane == 0)
+        cache[warp_id] = dot;
+      __syncthreads ();
+
+      if (warp_id == 0)
+      {
+        dot = 0.0;
+
+        for (unsigned int element = lane; element < blockDim.x / 32; element += 32)
+          dot += cache[element];
+
+        dot = warp_reduce (dot);
+
+        if (lane == 0 && row < n_rows)
+          y[row] = dot;
+      }
+    }
   }
 }
 
