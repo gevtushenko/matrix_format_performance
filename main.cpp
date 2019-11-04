@@ -292,7 +292,8 @@ int main(int argc, char *argv[])
 
     ifstream is (mtx);
     matrix_market::reader reader (is);
-    cout << "Complete loading" << endl;
+    auto &meta = reader.matrix ().meta;
+    fmt::print ("Complete loading (rows: {}; cols: {}; nnz: {})\n", meta.rows_count, meta.cols_count, meta.non_zero_count);
 
     unordered_map<string, vector<measurement_class>> results;
     results["float"] = perform_measurement<float> (mtx, reader, free_gpu_mem);

@@ -56,8 +56,6 @@ __global__ void csr_adaptive_spmv_kernel (
         dot += cache[j];
       }
 
-      //if (block_row_begin + i == 130)
-      //  printf ("1: y[%u] = %.20g\n", block_row_begin + i, dot);
       y[local_row] = dot;
       local_row += NNZ_PER_WG;
     }
@@ -88,9 +86,6 @@ __global__ void csr_adaptive_spmv_kernel (
       if (lane == 0 && warp_id == 0 && row < n_rows)
       {
         y[row] = dot;
-
-        if (row == 130)
-          printf ("2: y[%u] = %.20g\n", row, dot);
       }
     }
     else
@@ -123,9 +118,6 @@ __global__ void csr_adaptive_spmv_kernel (
         if (lane == 0 && row < n_rows)
         {
           y[row] = dot;
-
-          if (row == 130)
-            printf ("3: y[%u] = %.20g\n", row, dot);
         }
       }
     }
