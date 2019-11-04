@@ -270,7 +270,12 @@ int main(int argc, char *argv[])
   cudaSetDevice (0);
 
   size_t free_gpu_mem, total_gpu_mem;
-  cudaMemGetInfo (&free_gpu_mem, &total_gpu_mem);
+  auto status = cudaMemGetInfo (&free_gpu_mem, &total_gpu_mem);
+  if (status != cudaSuccess)
+  {
+    cerr << "CUDA Can't get free memory!\n";
+    return 1;
+  }
 
   ifstream list (argv[1]);
 
