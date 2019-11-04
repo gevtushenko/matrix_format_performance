@@ -43,19 +43,23 @@ __global__ void csr_adaptive_spmv_kernel (
       cache[i] = data[thread_data_begin] * x[col_ids[thread_data_begin]];
     __syncthreads ();
 
-    if ((block_row_begin + i) < block_row_end)
+    unsigned int local_row = block_row_begin + i;
+    while (local_row < block_row_end)
     {
       data_type dot = 0.0;
 
       // TODO Implement reduce
-      for (unsigned int j = row_ptr[block_row_begin + i] - block_data_begin;
-           j < row_ptr[block_row_begin + i + 1] - block_data_begin;
+      for (unsigned int j = row_ptr[local_row] - block_data_begin;
+           j < row_ptr[local_row + 1] - block_data_begin;
            j++)
       {
         dot += cache[j];
       }
 
-      y[block_row_begin + i] = dot;
+      //if (block_row_begin + i == 130)
+      //  printf ("1: y[%u] = %.20g\n", block_row_begin + i, dot);
+      y[local_row] = dot;
+      local_row += NNZ_PER_WG;
     }
   }
   else
@@ -82,7 +86,12 @@ __global__ void csr_adaptive_spmv_kernel (
       dot = warp_reduce (dot);
 
       if (lane == 0 && warp_id == 0 && row < n_rows)
+      {
         y[row] = dot;
+
+        if (row == 130)
+          printf ("2: y[%u] = %.20g\n", row, dot);
+      }
     }
     else
     {
@@ -112,7 +121,12 @@ __global__ void csr_adaptive_spmv_kernel (
         dot = warp_reduce (dot);
 
         if (lane == 0 && row < n_rows)
+        {
           y[row] = dot;
+
+          if (row == 130)
+            printf ("3: y[%u] = %.20g\n", row, dot);
+        }
       }
     }
   }
@@ -153,6 +167,12 @@ fill_row_blocks (
       }
 
       last_i = i;
+      nnz_sum = 0;
+    }
+    else if (i - last_i > NNZ_PER_WG)
+    {
+      last_i = i;
+      row_blocks[current_wg++] = i;
       nnz_sum = 0;
     }
   }
