@@ -134,12 +134,14 @@ __global__ void csr_adaptive_spmv_kernel (
 
 unsigned int
 fill_row_blocks (
+    bool fill,
     unsigned int rows_count,
     const unsigned int *row_ptr,
     unsigned int *row_blocks
 )
 {
-  row_blocks[0] = 0;
+  if (fill)
+    row_blocks[0] = 0;
 
   int last_i = 0;
   int current_wg = 1;
@@ -151,19 +153,26 @@ fill_row_blocks (
     if (nnz_sum == NNZ_PER_WG)
     {
       last_i = i;
-      row_blocks[current_wg++] = i;
+
+      if (fill)
+        row_blocks[current_wg] = i;
+      current_wg++;
       nnz_sum = 0;
     }
     else if (nnz_sum > NNZ_PER_WG)
     {
       if (i - last_i > 1)
       {
-        row_blocks[current_wg++] = i - 1;
+        if (fill)
+          row_blocks[current_wg] = i - 1;
+        current_wg++;
         i--;
       }
       else
       {
-        row_blocks[current_wg++] = i;
+        if (fill)
+          row_blocks[current_wg] = i;
+        current_wg++;
       }
 
       last_i = i;
@@ -172,12 +181,15 @@ fill_row_blocks (
     else if (i - last_i > NNZ_PER_WG)
     {
       last_i = i;
-      row_blocks[current_wg++] = i;
+      if (fill)
+        row_blocks[current_wg] = i;
+      current_wg++;
       nnz_sum = 0;
     }
   }
 
-  row_blocks[current_wg] = rows_count;
+  if (fill)
+    row_blocks[current_wg] = rows_count;
 
   return current_wg;
 }
@@ -224,13 +236,13 @@ measurement_class gpu_csr_adaptive_spmv (
   }
 
   // fill delimiters
-  std::unique_ptr<unsigned int[]> row_blocks(new unsigned int[meta.rows_count + 1]);
-
-  const unsigned int blocks_count = fill_row_blocks (meta.rows_count, matrix.row_ptr.get (), row_blocks.get ());
+  const unsigned int blocks_count = fill_row_blocks (false, meta.rows_count, matrix.row_ptr.get (), nullptr);
+  std::unique_ptr<unsigned int[]> row_blocks(new unsigned int[blocks_count + 1]);
+  fill_row_blocks (true, meta.rows_count, matrix.row_ptr.get (), row_blocks.get ());
 
   unsigned int *d_row_blocks {};
-  cudaMalloc (&d_row_blocks, (meta.rows_count + 1) * sizeof (unsigned int));
-  cudaMemcpy (d_row_blocks, row_blocks.get (), sizeof (unsigned int) * (meta.rows_count + 1), cudaMemcpyHostToDevice);
+  cudaMalloc (&d_row_blocks, (blocks_count + 1) * sizeof (unsigned int));
+  cudaMemcpy (d_row_blocks, row_blocks.get (), sizeof (unsigned int) * (blocks_count + 1), cudaMemcpyHostToDevice);
 
   cudaEvent_t start, stop;
   cudaEventCreate (&start);
