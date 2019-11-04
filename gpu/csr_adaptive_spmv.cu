@@ -5,7 +5,7 @@
 #include "csr_adaptive_spmv.h"
 #include "reduce.cuh"
 
-#define NNZ_PER_WG 128u ///< Should be power of two
+#define NNZ_PER_WG 64u ///< Should be power of two
 
 template <typename data_type>
 __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
@@ -122,17 +122,16 @@ __global__ void csr_adaptive_spmv_kernel (
 
     data_type dot = 0;
 
-    if (nnz <= 32)
+    if (nnz <= 64 || NNZ_PER_WG <= 32)
     {
       /// CSR-Vector case
       if (row < n_rows)
       {
         const unsigned int row_start = row_ptr[row];
         const unsigned int row_end = row_ptr[row + 1];
-        unsigned int element = row_start + lane;
 
-        if (element < row_end)
-          dot = data[element] * x[col_ids[element]];
+        for (unsigned int element = row_start + lane; element < row_end; element += 32)
+          dot += data[element] * x[col_ids[element]];
       }
 
       dot = warp_reduce (dot);
