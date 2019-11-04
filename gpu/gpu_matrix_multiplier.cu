@@ -100,7 +100,7 @@ measurement_class gpu_csr_spmv (
     int min_grid_size {};
 
     cudaOccupancyMaxPotentialBlockSize (&min_grid_size, &block_size, csr_spmv_kernel<data_type>, 0, 0);
-    int grid_size  = (x_size + block_size - 1) / block_size;
+    int grid_size  = (y_size + block_size - 1) / block_size;
 
     csr_spmv_kernel<<<grid_size, block_size>>> (
         meta.rows_count, col_ids.get (), row_ptr.get (), A.get (), x.get (), y.get ());

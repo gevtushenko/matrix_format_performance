@@ -222,7 +222,7 @@ measurement_class gpu_csr_adaptive_spmv (
     dim3 block_size = dim3 (NNZ_PER_WG);
     dim3 grid_size {};
 
-    grid_size.x = blocks_count; // (meta.non_zero_count + block_size.x - 1) / block_size.x;
+    grid_size.x = blocks_count;
 
     csr_adaptive_spmv_kernel<<<grid_size, block_size>>> (
         meta.rows_count, col_ids.get (), row_ptr.get (), d_row_blocks, A.get (), x.get (), y.get ());
@@ -240,19 +240,7 @@ measurement_class gpu_csr_adaptive_spmv (
 
   const double elapsed = milliseconds / 1000;
 
-  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (data_type);
-  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (data_type);
-  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
-  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
-  const size_t y_bytes = matrix.meta.rows_count * sizeof (data_type);
-
-  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
-
-  return measurement_class (
-      "GPU CSR-Adaptive",
-      elapsed,
-      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
-      operations_count);
+  return measurement_class ("GPU CSR-Adaptive", elapsed, 0, 0);
 }
 
 
