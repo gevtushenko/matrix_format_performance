@@ -5,7 +5,7 @@
 #include "csr_adaptive_spmv.h"
 #include "reduce.cuh"
 
-#define NNZ_PER_WG 128u ///< Should be equal to warpSize
+#define NNZ_PER_WG 128u ///< Should be power of two
 
 template <typename data_type>
 __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
@@ -14,6 +14,13 @@ __global__ void fill_vector (unsigned int n, data_type *vec, data_type value)
 
   if (i < n)
     vec[i] = value;
+}
+
+__device__ unsigned int prev_power_of_2 (unsigned int n)
+{
+  while (n & n - 1)
+    n = n & n - 1;
+  return n;
 }
 
 template <typename data_type>
@@ -43,22 +50,69 @@ __global__ void csr_adaptive_spmv_kernel (
       cache[i] = data[thread_data_begin] * x[col_ids[thread_data_begin]];
     __syncthreads ();
 
-    unsigned int local_row = block_row_begin + i;
-    while (local_row < block_row_end)
-    {
-      data_type dot = 0.0;
+    const unsigned int threads_for_reduction = prev_power_of_2 (blockDim.x / (block_row_end - block_row_begin));
 
-      // TODO Implement reduce
-      for (unsigned int j = row_ptr[local_row] - block_data_begin;
-           j < row_ptr[local_row + 1] - block_data_begin;
-           j++)
+    if (threads_for_reduction > 1)
       {
-        dot += cache[j];
-      }
+        /// Reduce all non zeroes of row by multiple thread
+        const unsigned int thread_in_block = i % threads_for_reduction;
+        const unsigned int local_row = block_row_begin + i / threads_for_reduction;
 
-      y[local_row] = dot;
-      local_row += NNZ_PER_WG;
-    }
+        data_type dot = 0.0;
+
+        if (local_row < block_row_end)
+          {
+            const unsigned int local_first_element = row_ptr[local_row] - row_ptr[block_row_begin];
+            const unsigned int local_last_element = row_ptr[local_row + 1] - row_ptr[block_row_begin];
+
+            for (unsigned int local_element = local_first_element + thread_in_block;
+                 local_element < local_last_element;
+                 local_element += threads_for_reduction)
+              {
+                dot += cache[local_element];
+              }
+          }
+        __syncthreads ();
+        cache[i] = dot;
+
+        /// Now each row has threads_for_reduction values in cache
+        for (int j = threads_for_reduction / 2; j > 0; j /= 2)
+          {
+            /// Reduce for each row
+            __syncthreads ();
+
+            const bool use_result = thread_in_block < j && i + j < NNZ_PER_WG;
+
+            if (use_result)
+              dot += cache[i + j];
+            __syncthreads ();
+
+            if (use_result)
+              cache[i] = dot;
+          }
+
+        if (thread_in_block == 0 && local_row < block_row_end)
+          y[local_row] = dot;
+      }
+    else
+      {
+        /// Reduce all non zeroes of row by single thread
+        unsigned int local_row = block_row_begin + i;
+        while (local_row < block_row_end)
+          {
+            data_type dot = 0.0;
+
+            for (unsigned int j = row_ptr[local_row] - block_data_begin;
+                 j < row_ptr[local_row + 1] - block_data_begin;
+                 j++)
+              {
+                dot += cache[j];
+              }
+
+            y[local_row] = dot;
+            local_row += NNZ_PER_WG;
+          }
+      }
   }
   else
   {
