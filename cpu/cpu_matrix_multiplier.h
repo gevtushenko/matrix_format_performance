@@ -20,6 +20,18 @@ measurement_class cpu_csr_spmv_single_thread_naive (
     data_type *x,
     data_type *y);
 
+measurement_class cpu_csr_spmv_mkl (
+    const csr_matrix_class<float> &matrix,
+    float *x,
+    float *y,
+    const float *reference_y);
+
+measurement_class cpu_csr_spmv_mkl (
+    const csr_matrix_class<double> &matrix,
+    double *x,
+    double *y,
+    const double *reference_y);
+
 template<typename data_type>
 measurement_class cpu_csr_spmv_single_thread_naive_with_reduce_order (
     const csr_matrix_class<data_type> &matrix,

@@ -1,0 +1,47 @@
+{
+  "FEM_3D_thermal2.mtx": {
+    "cols": 147900,
+    "nnz": 3489300,
+    "rows": 147900
+  },
+  "ML_Laplace.mtx": {
+    "cols": 377002,
+    "nnz": 27689972,
+    "rows": 377002
+  },
+  "PR02R.mtx": {
+    "cols": 161070,
+    "nnz": 8185136,
+    "rows": 161070
+  },
+  "af23560.mtx": {
+    "cols": 23560,
+    "nnz": 484256,
+    "rows": 23560
+  },
+  "lung2.mtx": {
+    "cols": 109460,
+    "nnz": 492564,
+    "rows": 109460
+  },
+  "mac_econ_fwd500.mtx": {
+    "cols": 206500,
+    "nnz": 1273389,
+    "rows": 206500
+  },
+  "mhd4800a.mtx": {
+    "cols": 4800,
+    "nnz": 102252,
+    "rows": 4800
+  },
+  "raefsky3.mtx": {
+    "cols": 21200,
+    "nnz": 1488768,
+    "rows": 21200
+  },
+  "thermal.mtx": {
+    "cols": 3456,
+    "nnz": 66528,
+    "rows": 3456
+  }
+}

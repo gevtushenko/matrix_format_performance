@@ -68,27 +68,6 @@ private:
   size_t elements_count {};
 };
 
-/// Sliced COO Format
-class scoo_matrix_class
-{
-public:
-  scoo_matrix_class () = delete;
-  explicit scoo_matrix_class (coo_matrix_class<double> &matrix);
-
-  const matrix_market::matrix_class::matrix_meta meta;
-
-  size_t get_matrix_size () const;
-
-public:
-  std::unique_ptr<double[]> values;
-  std::unique_ptr<unsigned int[]> c_index;
-  std::unique_ptr<unsigned int[]> r_index;
-  std::unique_ptr<unsigned int[]> index;
-
-private:
-  size_t elements_count {};
-};
-
 template <typename data_type>
 class hybrid_matrix_class
 {

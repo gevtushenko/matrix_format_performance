@@ -10,6 +10,7 @@
 #include "json.hpp"
 
 #include "measurement_class.h"
+#include "scoo_matrix_class.h"
 #include "matrix_market_reader.h"
 #include "resizable_gpu_memory.h"
 #include "matrix_converter.h"
@@ -137,6 +138,12 @@ vector<measurement_class> perform_measurement (
     single_core_timer.print_time (cpu_parallel_naive);
   }
 
+  {
+    auto cpu_time = cpu_csr_spmv_mkl (*csr_matrix, x.get (), cpu_y.get (), reference_answer.get ());
+    measurements.push_back (cpu_time);
+    single_core_timer.print_time (cpu_time);
+  }
+
   time_printer multi_core_timer (cpu_naive_time, cpu_parallel_naive_time);
 
   /// GPU Reusable memory
@@ -158,6 +165,11 @@ vector<measurement_class> perform_measurement (
       auto gpu_time = gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ());
       multi_core_timer.print_time (gpu_time);
       measurements.push_back (gpu_time);
+    }
+
+    if (0)
+    {
+      scoo_matrix_class scoo_matrix (*csr_matrix);
     }
 
     {
@@ -205,13 +217,16 @@ vector<measurement_class> perform_measurement (
       measurements.push_back (gpu_time);
     }
 
-    // if (0)
-    // {
-    //   scoo_matrix_class scoo_matrix (*coo_matrix);
-    // }
-
     resizable_gpu_memory<data_type> A_coo;
     resizable_gpu_memory<unsigned int> col_ids_coo;
+
+    {
+      hybrid_matrix_class<data_type> hybrid_matrix (*csr_matrix);
+      hybrid_matrix.allocate(*csr_matrix, 0.2);
+      auto gpu_time = gpu_hybrid_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
+    }
 
     if (0)
     {

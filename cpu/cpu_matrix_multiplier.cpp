@@ -60,6 +60,112 @@ measurement_class cpu_csr_spmv_single_thread_naive (
       operations_count);
 }
 
+#include "mkl_spblas.h"
+#include "mkl.h"
+
+measurement_class cpu_csr_spmv_mkl (
+    const csr_matrix_class<float> &matrix,
+    float *x,
+    float *y,
+    const float *reference_y)
+{
+  const auto &meta = matrix.meta;
+  fill_n (x, matrix.meta.cols_count, 1.0);
+
+  const auto row_ptr = matrix.row_ptr.get ();
+  const auto col_ids = matrix.columns.get ();
+  const auto data = matrix.data.get ();
+
+  struct matrix_descr descr_A;
+  sparse_matrix_t csr_A;
+  const float alpha = 1.0, beta = 0.0;
+
+  auto avx2_enabled = mkl_enable_instructions (MKL_ENABLE_AVX2);
+  mkl_set_num_threads(std::thread::hardware_concurrency ());
+
+  mkl_sparse_s_create_csr (
+      &csr_A,
+      SPARSE_INDEX_BASE_ZERO, meta.rows_count, meta.cols_count,
+      reinterpret_cast<int *> (row_ptr), reinterpret_cast<int *> (row_ptr + 1),
+      reinterpret_cast<int *> (col_ids), data);
+
+  descr_A.type = SPARSE_MATRIX_TYPE_GENERAL;
+  mkl_sparse_optimize (csr_A);
+
+  auto begin = chrono::system_clock::now ();
+
+  mkl_sparse_s_mv (SPARSE_OPERATION_NON_TRANSPOSE, alpha, csr_A, descr_A, x, beta, y);
+
+  auto end = chrono::system_clock::now ();
+  const double elapsed = chrono::duration<double> (end - begin).count ();
+
+  compare_results (meta.rows_count, y, reference_y);
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (float);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (float);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (float);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "CPU CSR (mkl)",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
+}
+
+measurement_class cpu_csr_spmv_mkl (
+    const csr_matrix_class<double> &matrix,
+    double *x,
+    double *y,
+    const double *reference_y)
+{
+  const auto &meta = matrix.meta;
+  fill_n (x, matrix.meta.cols_count, 1.0);
+
+  const auto row_ptr = matrix.row_ptr.get ();
+  const auto col_ids = matrix.columns.get ();
+  const auto data = matrix.data.get ();
+
+  struct matrix_descr descr_A;
+  sparse_matrix_t csr_A;
+  const double alpha = 1.0, beta = 0.0;
+
+  mkl_sparse_d_create_csr (
+      &csr_A,
+      SPARSE_INDEX_BASE_ZERO, meta.rows_count, meta.cols_count,
+      reinterpret_cast<int *> (row_ptr), reinterpret_cast<int *> (row_ptr + 1),
+      reinterpret_cast<int *> (col_ids), data);
+
+  descr_A.type = SPARSE_MATRIX_TYPE_GENERAL;
+  mkl_sparse_optimize (csr_A);
+
+  auto begin = chrono::system_clock::now ();
+
+  mkl_sparse_d_mv (SPARSE_OPERATION_NON_TRANSPOSE, alpha, csr_A, descr_A, x, beta, y);
+
+  auto end = chrono::system_clock::now ();
+  const double elapsed = chrono::duration<double> (end - begin).count ();
+
+  compare_results (meta.rows_count, y, reference_y);
+
+  const size_t data_bytes = matrix.meta.non_zero_count * sizeof (double);
+  const size_t x_bytes = matrix.meta.non_zero_count * sizeof (double);
+  const size_t col_ids_bytes = matrix.meta.non_zero_count * sizeof (unsigned int);
+  const size_t row_ids_bytes = 2 * matrix.meta.rows_count * sizeof (unsigned int);
+  const size_t y_bytes = matrix.meta.rows_count * sizeof (double);
+
+  const size_t operations_count = matrix.meta.non_zero_count * 2; // + and * per element
+
+  return measurement_class (
+      "CPU CSR (mkl)",
+      elapsed,
+      data_bytes + x_bytes + col_ids_bytes + row_ids_bytes + y_bytes,
+      operations_count);
+}
+
 template<typename data_type>
 measurement_class cpu_csr_spmv_single_thread_naive_with_reduce_order (
     const csr_matrix_class<data_type> &matrix,
