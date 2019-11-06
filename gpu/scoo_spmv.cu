@@ -156,7 +156,7 @@ measurement_class gpu_scoo_spmv (
 
   const unsigned int slice_size = matrix.slice_size;
   const unsigned int lane_size = matrix.lane_size;
-  dim3 block_size = std::min (512u, find_next_multiple_of (lane_size, 32));
+  dim3 block_size = std::min (512u, find_next_multiple_of (lane_size * slice_size, 32));
   dim3 grid_size {};
 
   grid_size.x = matrix.slices_count;
