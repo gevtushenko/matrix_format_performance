@@ -18,6 +18,7 @@
 #include "csr_adaptive_spmv.h"
 #include "gpu_matrix_multiplier.h"
 #include "cpu_matrix_multiplier.h"
+#include "scoo_spmv.h"
 
 #include "cpp_itt.h"
 
@@ -26,6 +27,7 @@
 #include "fmt/core.h"
 
 #define CHECK_CUSP 0
+#define CHECK_CPU 0
 
 using namespace nlohmann;
 using namespace std;
@@ -80,7 +82,9 @@ template <typename data_type>
 vector<measurement_class> perform_measurement (
     const string &mtx,
     const matrix_market::reader &reader,
-    size_t free_memory)
+    size_t free_memory,
+    int sm_count,
+    size_t shared_mem_size)
 {
   vector<measurement_class> measurements;
 
@@ -94,21 +98,24 @@ vector<measurement_class> perform_measurement (
     csr_matrix = make_unique<csr_matrix_class<data_type>> (reader.matrix ());
     cout << "Complete converting to CSR" << endl;
 
-    const size_t csr_matrix_size = csr_matrix->get_matrix_size ();
-    const size_t ell_matrix_size = ell_matrix_class<data_type>::estimate_size (*csr_matrix);
+    if (!CHECK_CPU)
+    {
+      const size_t csr_matrix_size = csr_matrix->get_matrix_size ();
+      const size_t ell_matrix_size = ell_matrix_class<data_type>::estimate_size (*csr_matrix);
 
-    const size_t vec_size = std::max (reader.matrix ().meta.rows_count, reader.matrix ().meta.cols_count) * sizeof (data_type);
-    const size_t matrix_size = std::max (csr_matrix_size, ell_matrix_size) * sizeof (data_type);
-    const size_t estimated_size = matrix_size + 5 * vec_size;
+      const size_t vec_size = std::max (reader.matrix ().meta.rows_count, reader.matrix ().meta.cols_count) * sizeof (data_type);
+      const size_t matrix_size = std::max (csr_matrix_size, ell_matrix_size) * sizeof (data_type);
+      const size_t estimated_size = matrix_size + 5 * vec_size;
 
-    if (estimated_size * sizeof (data_type) > free_memory * 0.9)
-      return {};
+      if (estimated_size * sizeof (data_type) > free_memory * 0.9)
+        return {};
 
-    ell_matrix = make_unique<ell_matrix_class<data_type>> (*csr_matrix);
-    cout << "Complete converting to ELL" << endl;
+      ell_matrix = make_unique<ell_matrix_class<data_type>> (*csr_matrix);
+      cout << "Complete converting to ELL" << endl;
 
-    coo_matrix = make_unique<coo_matrix_class<data_type>> (*csr_matrix);
-    cout << "Complete converting to COO" << endl;
+      coo_matrix = make_unique<coo_matrix_class<data_type>> (*csr_matrix);
+      cout << "Complete converting to COO" << endl;
+    }
   }
 
   // CPU
@@ -139,10 +146,14 @@ vector<measurement_class> perform_measurement (
   }
 
   {
+    auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_mkl");
     auto cpu_time = cpu_csr_spmv_mkl (*csr_matrix, x.get (), cpu_y.get (), reference_answer.get ());
     measurements.push_back (cpu_time);
     single_core_timer.print_time (cpu_time);
   }
+
+  if (CHECK_CPU)
+    return measurements;
 
   time_printer multi_core_timer (cpu_naive_time, cpu_parallel_naive_time);
 
@@ -167,9 +178,11 @@ vector<measurement_class> perform_measurement (
       measurements.push_back (gpu_time);
     }
 
-    if (0)
     {
-      scoo_matrix_class scoo_matrix (*csr_matrix);
+      scoo_matrix_class scoo_matrix (sm_count, shared_mem_size, *csr_matrix);
+      auto gpu_time = gpu_scoo_spmv<data_type> (scoo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
     }
 
     {
@@ -282,14 +295,27 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  cudaSetDevice (0);
-
   size_t free_gpu_mem, total_gpu_mem;
-  auto status = cudaMemGetInfo (&free_gpu_mem, &total_gpu_mem);
-  if (status != cudaSuccess)
+  int sm_count = 0;
+  size_t shared_mem_size = 0;
+
+  int gpu_id = 0;
+
+  if (!CHECK_CPU)
   {
-    cerr << "CUDA Can't get free memory!\n";
-    return 1;
+    cudaSetDevice (gpu_id);
+
+    cudaDeviceProp prop {};
+    cudaGetDeviceProperties (&prop, gpu_id);
+    sm_count = prop.multiProcessorCount;
+    shared_mem_size = prop.sharedMemPerBlock;
+
+    auto status = cudaMemGetInfo (&free_gpu_mem, &total_gpu_mem);
+    if (status != cudaSuccess)
+    {
+      cerr << "CUDA Can't get free memory!\n";
+      return 1;
+    }
   }
 
   ifstream list (argv[1]);
@@ -311,8 +337,8 @@ int main(int argc, char *argv[])
     fmt::print ("Complete loading (rows: {}; cols: {}; nnz: {})\n", meta.rows_count, meta.cols_count, meta.non_zero_count);
 
     unordered_map<string, vector<measurement_class>> results;
-    results["float"] = perform_measurement<float> (mtx, reader, free_gpu_mem);
-    results["double"] = perform_measurement<double> (mtx, reader, free_gpu_mem);
+    results["float"] = perform_measurement<float> (mtx, reader, free_gpu_mem, sm_count, shared_mem_size);
+    results["double"] = perform_measurement<double> (mtx, reader, free_gpu_mem, sm_count, shared_mem_size);
 
     mtx = get_filename (mtx);
 

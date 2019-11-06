@@ -81,7 +81,6 @@ measurement_class cpu_csr_spmv_mkl (
   const float alpha = 1.0, beta = 0.0;
 
   auto avx2_enabled = mkl_enable_instructions (MKL_ENABLE_AVX2);
-  mkl_set_num_threads(std::thread::hardware_concurrency ());
 
   mkl_sparse_s_create_csr (
       &csr_A,
@@ -132,6 +131,8 @@ measurement_class cpu_csr_spmv_mkl (
   struct matrix_descr descr_A;
   sparse_matrix_t csr_A;
   const double alpha = 1.0, beta = 0.0;
+
+  auto avx2_enabled = mkl_enable_instructions (MKL_ENABLE_AVX2);
 
   mkl_sparse_d_create_csr (
       &csr_A,

@@ -5,6 +5,8 @@ set(GPU_SOURCES
         reduce.cuh
         gpu_matrix_multiplier.h
         gpu_matrix_multiplier.cu
+        scoo_spmv.cu
+        scoo_spmv.h
         csr_adaptive_spmv.cu
         csr_adaptive_spmv.h
         resizable_gpu_memory.h

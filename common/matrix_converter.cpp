@@ -4,6 +4,7 @@
 
 #include "matrix_converter.h"
 
+#include <vector>
 #include <algorithm>
 #include <iostream>
 #include <numeric>
@@ -46,6 +47,34 @@ csr_matrix_class<data_type>::csr_matrix_class (const matrix_market::matrix_class
     const unsigned int element_offset = row_ptr[row] + row_element_id[row]++;
     data[element_offset] = src_data[i];
     columns[element_offset] = src_cols[i];
+  }
+
+  std::vector<unsigned int> permutation;
+  std::vector<unsigned int> tmp_columns;
+  std::vector<data_type> tmp_data;
+  for (unsigned int i = 0; i < meta.rows_count; i++)
+  {
+    const auto row_begin = row_ptr[i];
+    const auto row_end = row_ptr[i + 1];
+    const auto n_elements = row_end - row_begin;
+
+    permutation.resize (n_elements);
+    tmp_columns.resize (n_elements);
+    tmp_data.resize (n_elements);
+
+    std::copy_n (data.get () + row_begin, n_elements, tmp_data.data ());
+    std::copy_n (columns.get () + row_begin, n_elements, tmp_columns.data ());
+
+    std::iota (permutation.begin (), permutation.end (), 0);
+    std::sort (permutation.begin (), permutation.end (), [&] (const unsigned int &l, const unsigned int &r) {
+      return columns[row_begin + l] < columns[row_begin + r];
+    });
+
+    for (unsigned int element = 0; element < n_elements; element++)
+    {
+      data[row_begin + element] = tmp_data[permutation[element]];
+      columns[row_begin + element] = tmp_columns[permutation[element]];
+    }
   }
 }
 
