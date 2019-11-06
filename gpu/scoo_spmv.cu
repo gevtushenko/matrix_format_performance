@@ -82,20 +82,12 @@ __global__ void scoo_spmv_kernel (
   }
   __syncthreads ();
 
-  /// Reduce value from cache[row][*]
-  // for (unsigned int index = row_lane; index < limit; index += blockDim.x / lane_size)
-  // {
-  // }
-  // __syncthreads ();
-
   const unsigned int slice_row_begin = slice_id * slice_size;
   for (unsigned int index = threadIdx.x; index < limit; index += blockDim.x)
   {
     data_type sum = 0.0;
     for (unsigned int i = 0; i < lane_size; i++)
-    {
       sum += cache[index * lane_size + i];
-    }
     y[slice_row_begin + index] = sum;
   }
 }
@@ -162,16 +154,16 @@ measurement_class gpu_scoo_spmv (
   cudaEventCreate (&start);
   cudaEventCreate (&stop);
 
+  const unsigned int slice_size = matrix.slice_size;
+  const unsigned int lane_size = matrix.lane_size;
+  dim3 block_size = std::min (512u, find_next_multiple_of (lane_size, 32));
+  dim3 grid_size {};
+
+  grid_size.x = matrix.slices_count;
+
   cudaDeviceSynchronize ();
   cudaEventRecord (start);
   {
-    const unsigned int slice_size = matrix.slice_size;
-    const unsigned int lane_size = matrix.lane_size;
-    dim3 block_size = find_next_multiple_of (lane_size, 32);
-    dim3 grid_size {};
-
-    grid_size.x = matrix.slices_count;
-
     scoo_spmv_kernel<<<grid_size, block_size, slice_size * lane_size * sizeof (data_type)>>> (
         meta.rows_count, matrix.slices_count, slice_size, lane_size, c_index.get (), r_index.get (), A.get (), d_slices_ptr, x.get (), y.get ());
   }

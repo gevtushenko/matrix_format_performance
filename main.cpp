@@ -179,13 +179,6 @@ vector<measurement_class> perform_measurement (
     }
 
     {
-      scoo_matrix_class scoo_matrix (sm_count, shared_mem_size, *csr_matrix);
-      auto gpu_time = gpu_scoo_spmv<data_type> (scoo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ());
-      multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
-    }
-
-    {
       auto gpu_time = gpu_csr_adaptive_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
       measurements.push_back (gpu_time);
@@ -219,6 +212,13 @@ vector<measurement_class> perform_measurement (
 
     {
       auto gpu_time = gpu_coo_spmv<data_type> (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      multi_core_timer.print_time (gpu_time);
+      measurements.push_back (gpu_time);
+    }
+
+    {
+      scoo_matrix_class scoo_matrix (sm_count, shared_mem_size, *csr_matrix);
+      auto gpu_time = gpu_scoo_spmv<data_type> (scoo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
       multi_core_timer.print_time (gpu_time);
       measurements.push_back (gpu_time);
     }
