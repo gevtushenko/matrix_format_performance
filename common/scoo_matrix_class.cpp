@@ -5,6 +5,8 @@
 #include "scoo_matrix_class.h"
 #include "matrix_converter.h"
 
+#include <vector>
+#include <numeric>
 #include <iostream>
 #include <algorithm>
 
@@ -67,6 +69,44 @@ scoo_matrix_class<data_type>::scoo_matrix_class (
     }
   }
   slices_ptr[slice_id] = offset;
+
+  const bool sort_cols = false;
+
+  if (sort_cols)
+  {
+    std::vector<data_type> tmp_data;
+    std::vector<unsigned int> tmp_rows;
+    std::vector<unsigned int> tmp_cols;
+    std::vector<unsigned int> permutation;
+
+    for (slice_id = 0; slice_id < slices_count; slice_id++)
+    {
+      const auto slice_begin = slices_ptr[slice_id];
+      const auto slice_end = slices_ptr[slice_id + 1];
+      const auto elements_in_slice = slice_end - slice_begin;
+
+      tmp_data.resize (elements_in_slice);
+      tmp_cols.resize (elements_in_slice);
+      tmp_rows.resize (elements_in_slice);
+      permutation.resize (elements_in_slice);
+      std::iota (permutation.begin (), permutation.end (), 0);
+      std::sort (permutation.begin (), permutation.end (), [&] (const unsigned int &l, const unsigned int &r) {
+        return c_index[slice_begin + l] < c_index[slice_begin + r];
+      });
+
+      std::copy_n (values.get () + slice_begin, elements_in_slice, tmp_data.begin ());
+      std::copy_n (r_index.get () + slice_begin, elements_in_slice, tmp_rows.begin ());
+      std::copy_n (c_index.get () + slice_begin, elements_in_slice, tmp_cols.begin ());
+
+      for (unsigned int element = slice_begin; element < slice_end; element++)
+      {
+        const unsigned int local_element = element - slice_begin;
+        values[element] = tmp_data[permutation[local_element]];
+        r_index[element] = tmp_rows[permutation[local_element]];
+        c_index[element] = tmp_cols[permutation[local_element]];
+      }
+    }
+  }
 }
 
 template class scoo_matrix_class<float>;
