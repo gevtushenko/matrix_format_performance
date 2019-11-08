@@ -63,15 +63,20 @@ __global__ void scoo_spmv_kernel (
   // __shared__ data_type cache[slice_size][lane_size];
 
   const unsigned int slice_id = blockIdx.x;
+  const unsigned int slice_row_begin = slice_id * slice_size;
   const unsigned int limit = (slice_id != n_slices - 1) ? slice_size : ((n_rows - 1) % slice_size) + 1;
 
   const unsigned int begin = slices_ptr[slice_id];
   const unsigned int end = slices_ptr[slice_id + 1];
 
-  for (unsigned int index = row_lane; index < limit; index += blockDim.x / lane_size)
+  const unsigned int threads_per_row = blockDim.x / lane_size;
+
+  /// Prepare cache
+  for (unsigned int index = row_lane; index < limit; index += threads_per_row)
     cache[index * lane_size + thread_lane] = 0.0;
   __syncthreads ();
 
+  /// Cache data
   for (unsigned int index = begin + threadIdx.x; index < end; index += blockDim.x)
   {
     const unsigned int col = c_index[index];
@@ -82,13 +87,44 @@ __global__ void scoo_spmv_kernel (
   }
   __syncthreads ();
 
-  const unsigned int slice_row_begin = slice_id * slice_size;
-  for (unsigned int index = threadIdx.x; index < limit; index += blockDim.x)
+  if (threads_per_row > 1)
   {
-    data_type sum = 0.0;
-    for (unsigned int i = 0; i < lane_size; i++)
-      sum += cache[index * lane_size + i];
-    y[slice_row_begin + index] = sum;
+    /// Reduce step 1 - gather values in threads_per_row lanes
+    if (row_lane < limit)
+    {
+      for (unsigned int lane = thread_lane + threads_per_row; lane < lane_size; lane += threads_per_row)
+      {
+        cache[row_lane * lane_size + thread_lane] += cache[row_lane * lane_size + lane];
+      }
+    }
+    __syncthreads ();
+
+      /// Reduce step 2 - tree reduction
+    for (unsigned int s = min (threads_per_row, lane_size) / 2; s > 0; s /= 2)
+    {
+      if (row_lane < limit)
+      {
+        if (thread_lane < s)
+          cache[row_lane * lane_size + thread_lane] += cache[row_lane * lane_size + thread_lane + s];
+      }
+      __syncthreads ();
+    }
+
+    /// Write reduction results
+    if (row_lane < limit)
+      if (slice_row_begin + row_lane < n_rows)
+        y[slice_row_begin + row_lane] = cache[row_lane * lane_size + 0];
+  }
+  else
+  {
+    /// Write results
+    for (unsigned int index = threadIdx.x; index < limit; index += blockDim.x)
+    {
+      data_type sum = 0.0;
+      for (unsigned int i = 0; i < lane_size; i++)
+        sum += cache[index * lane_size + i];
+      y[slice_row_begin + index] = sum;
+    }
   }
 }
 
@@ -157,7 +193,7 @@ measurement_class gpu_scoo_spmv (
 
   const unsigned int slice_size = matrix.slice_size;
   const unsigned int lane_size = matrix.lane_size;
-  dim3 block_size = std::min (512u, find_next_multiple_of (lane_size * slice_size, 32));
+  dim3 block_size = 1024u;
   dim3 grid_size {};
 
   grid_size.x = matrix.slices_count;

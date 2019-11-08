@@ -138,7 +138,7 @@ vector<measurement_class> perform_measurement (
   auto measure_multiple_times = [&] (const std::function<measurement_class(bool)> &action)
   {
     measurement_class result;
-    const unsigned int measurements_count = 30;
+    const unsigned int measurements_count = 1;
     for (unsigned int measurement_id = 0; measurement_id < measurements_count; measurement_id++)
       result += action (measurement_id == 0);
     result.finalize ();

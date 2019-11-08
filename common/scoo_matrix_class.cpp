@@ -10,13 +10,30 @@
 #include <iostream>
 #include <algorithm>
 
+unsigned next_pow_2 (unsigned x) {
+  --x;
+  x |= x >> 1u;
+  x |= x >> 2u;
+  x |= x >> 4u;
+  x |= x >> 8u;
+  x |= x >> 16u;
+  return ++x;
+}
+
+unsigned prev_pow_2 (unsigned x) {
+  unsigned int next_pow = next_pow_2 (x);
+  if (next_pow > x)
+    return next_pow / 2;
+  return next_pow;
+}
+
 template <typename data_type>
 unsigned int calculate_slices_count (
     unsigned int n_rows,
     unsigned int sm_count,
     size_t shared_mem_size)
 {
-  const unsigned int max_rows_per_block = shared_mem_size / sizeof (data_type);
+  const unsigned int max_rows_per_block = std::min (512ul, shared_mem_size / sizeof (data_type));
 
   unsigned int multiplier = 1;
 
@@ -27,6 +44,18 @@ unsigned int calculate_slices_count (
 }
 
 template <typename data_type>
+unsigned int calculate_lane_size (
+    unsigned int slices_count,
+    unsigned int slice_size,
+    size_t shared_mem_size)
+{
+  unsigned int lane_size = prev_pow_2 (std::min (slices_count, prev_pow_2 (shared_mem_size / (slice_size * sizeof (data_type)))));
+  while (slice_size * lane_size > 1024)
+    lane_size /= 2;
+  return lane_size ? lane_size : 1;
+}
+
+template <typename data_type>
 scoo_matrix_class<data_type>::scoo_matrix_class (
     unsigned int sm_count,
     size_t shared_mem_size,
@@ -34,7 +63,7 @@ scoo_matrix_class<data_type>::scoo_matrix_class (
   : meta (matrix.meta)
   , slices_count (calculate_slices_count<data_type> (meta.rows_count, sm_count, shared_mem_size))
   , slice_size ((meta.rows_count + slices_count - 1) / slices_count)
-  , lane_size (std::min (static_cast<size_t> (slices_count), shared_mem_size / (slice_size * sizeof (data_type))))
+  , lane_size (calculate_lane_size<data_type> (slices_count, slice_size, shared_mem_size))
 {
   auto row_ptr = matrix.row_ptr.get ();
 
