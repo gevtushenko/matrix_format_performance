@@ -220,6 +220,7 @@ vector<measurement_class> perform_measurement (
 
     {
       scoo_matrix_class scoo_matrix (sm_count, shared_mem_size, *csr_matrix);
+      fmt::print ("SCOO: slice_size={}; lane_size={}; slices_count={}\n", scoo_matrix.slice_size, scoo_matrix.lane_size, scoo_matrix.slices_count);
       auto gpu_time = measure_multiple_times ([&](bool print_diff) { return gpu_scoo_spmv<data_type> (print_diff, scoo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
     }
@@ -440,7 +441,7 @@ int main(int argc, char *argv[])
     ifstream is (mtx);
     matrix_market::reader reader (is);
     auto &meta = reader.matrix ().meta;
-    fmt::print ("Complete loading (rows: {}; cols: {}; nnz: {})\n", meta.rows_count, meta.cols_count, meta.non_zero_count);
+    fmt::print ("Complete loading (rows: {}; cols: {}; nnz: {}; nnzpr: {})\n", meta.rows_count, meta.cols_count, meta.non_zero_count, meta.non_zero_count / meta.rows_count);
 
     unordered_map<string, vector<measurement_class>> results;
     results["float"] = perform_measurement<float> (mtx, reader, free_gpu_mem, sm_count, shared_mem_size);

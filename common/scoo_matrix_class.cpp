@@ -34,7 +34,7 @@ scoo_matrix_class<data_type>::scoo_matrix_class (
   : meta (matrix.meta)
   , slices_count (calculate_slices_count<data_type> (meta.rows_count, sm_count, shared_mem_size))
   , slice_size ((meta.rows_count + slices_count - 1) / slices_count)
-  , lane_size (std::min (static_cast<size_t> (16), shared_mem_size / (slice_size * sizeof (data_type))))
+  , lane_size (std::min (static_cast<size_t> (slices_count), shared_mem_size / (slice_size * sizeof (data_type))))
 {
   auto row_ptr = matrix.row_ptr.get ();
 
