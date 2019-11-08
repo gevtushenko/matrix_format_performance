@@ -152,14 +152,14 @@ is used to divide \textit{values} array into separate rows. It's size is equal t
 
 \begin{figure}
   \centering
-  \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}]
+  \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}, scale=0.8]
 
   \foreach \y in {0,...,9} {
-    \node[scale=0.5,text=gray] at (10.3,10.0 - 1.0*\y - 0.5) {\y};
+    \node[scale=0.7,text=gray] at (10.3,10.0 - 1.0*\y - 0.5) {\y};
   }
 
   \foreach \x in {0,...,9} {
-    \node[scale=0.5,text=gray] at (1.0*\x + 0.5,-0.2) {\x};
+    \node[scale=0.7,text=gray] at (1.0*\x + 0.5,-0.2) {\x};
   }
 
   \draw[->,gray] (-0.4,10.2) -- (0.6,10.2) node[right] {$i$};
@@ -228,31 +228,34 @@ is used to divide \textit{values} array into separate rows. It's size is equal t
   \xdef\ybot{\pgfmathresult}
 
   % MATRIX OFFSETS
+  \draw [mbrace] (11 *\esize,\ybot+1.3*\esize)  -- (0*\esize,\ybot+1.3*\esize) node[toplabel] {$n\_rows+1$};
+
   \node[scale=0.8] at (-0.6,\ybot+\esize/2) {$row\_ptr$};
+
+  \foreach \i in {0,...,9} {
+    \node[scale=0.7,text=gray] at (\i * \esize + \esize/2,\ybot+\esize*1.2) {\i};
+  }
 
   \edef\xnum{0}
   \edef\lastblockoffset{0}
   \edef\middlepoint{\ybot-\esize*0.8}
 
-  \foreach \offset in {0,4,4,4,4,9,14,14,14,15} {
+  \foreach \offset in {0,4,4,4,4,9,14,14,14,14,15} {
     \pgfmathparse{\esize*\offset}
     \xdef\lastblockoffset{\pgfmathresult}
 
     \ifthenelse{\xnum<4}
     { \draw[fill=r0d!60] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
     {
-      \ifthenelse{\xnum<9}
+      \ifthenelse{\xnum<8}
       { \draw[fill=r1d!60] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
       {
-        \ifthenelse{\xnum<15}
-        { \draw[fill=white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
+        \ifthenelse{\xnum<10}
+        { \draw[fill=r2d!60] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
         {
-          \ifthenelse{\xnum<12}
-          { \draw[fill=r0d!50!white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
+          \ifthenelse{\xnum<11}
+          { \draw[fill=white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
           { 
-            \ifthenelse{\xnum<22}
-            { \draw[fill=r1d!50!white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
-            { \draw[fill=white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
           }
         }
       }
@@ -309,7 +312,30 @@ is used to divide \textit{values} array into separate rows. It's size is equal t
     \xdef\elementnum{\pgfmathresult}
   }
 
-  \draw [mbrace] (0 *\esize,\ybot)  -- (15*\esize,\ybot) node[bottomlabel] {$nnz$};
+  \draw [mbrace] (0 *\esize,1.01*\ybot)  -- (15*\esize,1.01*\ybot) node[bottomlabel] {$nnz$};
+  \draw [mbrace] (15 *\esize,1.01*\ybot-0.9*\esize) -- (0* \esize,1.01*\ybot-0.9*\esize) node[bottomlabel] {};
+
+  \pgfmathparse{\ybot-\esize*2}
+  \xdef\ybot{\pgfmathresult}
+  \node[scale=0.8] at (-0.6,\ybot+\esize/2) {$columns$};
+
+  \edef\elementnum{0}
+  \foreach \i in {0,1,5,6} {
+    \draw[fill=r0d!60] (\elementnum * \esize,\ybot) rectangle (\elementnum * \esize + \esize,\ybot+\esize) node[pos=0.5] {\i};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+  \foreach \i in {0,2,4,6,8,1,3,5,7,9} {
+    \draw[fill=r1d!60] (\elementnum * \esize,\ybot) rectangle (\elementnum * \esize + \esize,\ybot+\esize) node[pos=0.5] {\i};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+  \foreach \i in {1} {
+    \draw[fill=r2d!60] (\elementnum * \esize,\ybot) rectangle (\elementnum * \esize + \esize,\ybot+\esize) node[pos=0.5] {\i};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
   \end{tikzpicture}
   \caption{Example of Compressed Sparse Row (CSR) matrix format}
   \label{csr_format}
