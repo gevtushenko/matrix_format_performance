@@ -15,7 +15,7 @@
 \tikzset{%
   brace/.style = { decorate, decoration={brace, amplitude=5pt} },
   mbrace/.style = { decorate, decoration={brace, amplitude=5pt, mirror} },
-  label/.style = { black, midway, scale=0.5, align=center },
+  label/.style = { black, midway, scale=0.8, align=center },
   toplabel/.style = { label, above=.5em, anchor=south },
   leftlabel/.style = { label,rotate=90,left=1.9em,anchor=north },   
   rightlabel/.style = { label,rotate=-90,right=1.5em,anchor=north },   
@@ -121,11 +121,11 @@ This post provides an efficiency review for basic sparse matrix data structures 
 
       % Bottom part
       \foreach \y in {5,...,23}
-       \fill [gray] (\es * \y - 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+       \fill [gray] (\es * \y - 5 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
 
       % Top part
-      \foreach \y in {0,...,19}
-       \fill [gray] (\es * \y + 4 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
+      \foreach \y in {0,...,18}
+       \fill [gray] (\es * \y + 5 * \es + \pd, \size - \es * \y - \es + \pd) rectangle ++(\ebs, \ebs);
 
       % Diag part
       \foreach \y in {0,...,17}
@@ -154,12 +154,12 @@ is used to divide \textit{values} array into separate rows. It's size is equal t
   \centering
   \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}]
 
-  \foreach \y in {0,...,19} {
-    \node[scale=0.4,text=gray] at (10.3,10.0 - 0.5*\y - 0.25) {\y};
+  \foreach \y in {0,...,9} {
+    \node[scale=0.5,text=gray] at (10.3,10.0 - 1.0*\y - 0.5) {\y};
   }
 
-  \foreach \x in {0,...,19} {
-    \node[scale=0.4,text=gray] at (0.5*\x + 0.25,-0.2) {\x};
+  \foreach \x in {0,...,9} {
+    \node[scale=0.5,text=gray] at (1.0*\x + 0.5,-0.2) {\x};
   }
 
   \draw[->,gray] (-0.4,10.2) -- (0.6,10.2) node[right] {$i$};
@@ -176,50 +176,36 @@ is used to divide \textit{values} array into separate rows. It's size is equal t
   % Bottom braces
   \draw [mbrace] (0.0,-0.3) -- (10,-0.3) node[bottomlabel] {$n\_cols$};
 
+  \edef\esize{1.0}
 
-  % RANK 0
-  \draw[fill=r0d] (0,9.5) rectangle (0.5,10) node[pos=.5] {1}; % DIAG
-  \draw[fill=r0d] (0.5,8.5) rectangle (1.5,9.5) node[pos=.5] {2}; 
-  \draw[fill=r0d] (1.5,7.5) rectangle (2.5,8.5) node[pos=.5] {3}; 
-  \draw[fill=r0d] (3.0,7.0) rectangle (2.5,7.5) node[pos=.5] {4}; 
-  \draw[fill=r0d] (3.5,6.5) rectangle (3.0,7.0) node[pos=.5] {5}; 
+  % ROW 0
+  \edef\elementnum{1}
+  \foreach \col in {0,1,5,6} {
+    \draw[fill=r0d!60] (\col*\esize,9.0) rectangle (\col*\esize+\esize,10) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
 
-  \draw[fill=r0d!50!white] (2.5,8.5) rectangle (3.0,9.5) node[pos=.5] {14}; % OFF-DIAG
-  \draw[fill=r0d!50!white] (7.5,8.5) rectangle (8.5,9.5) node[pos=.5] {15}; 
-  \draw[fill=r0d!50!white] (0.5,7.0) rectangle (1.5,7.5) node[pos=.5] {16}; 
-  \draw[fill=r0d!50!white] (3.5,7.0) rectangle (4.0,7.5) node[pos=.5] {17}; 
-  \draw[fill=r0d!50!white] (7.5,7.0) rectangle (8.5,7.5) node[pos=.5] {18}; 
-  \draw[fill=r0d!50!white] (3.5,6.5) rectangle (4.0,7.0) node[pos=.5] {19}; 
-  \draw[fill=r0d!50!white] (7.5,6.5) rectangle (8.5,7.0) node[pos=.5] {20}; 
+  % ROW 4
+  \foreach \col in {0,2,4,6,8} {
+    \draw[fill=r1d!60] (\col*\esize,5.0) rectangle (\col*\esize+\esize,6) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
 
-  $$% RANK 1
-  \draw[fill=r1d] (4.0,6.0) rectangle (3.5,6.5) node[pos=.5] {6}; % DIAG
-  \draw[fill=r1d] (4.0,6.0) rectangle (5.0,5.0) node[pos=.5] {7}; 
-  \draw[fill=r1d] (5.0,5.0) rectangle (6.5,3.5) node[pos=.5] {8}; 
-  \draw[fill=r1d] (6.5,3.5) rectangle (7.5,2.5) node[pos=.5] {9}; 
+  % ROW 5
+  \foreach \col in {1,3,5,7,9} {
+    \draw[fill=r1d!60] (\col*\esize,4.0) rectangle (\col*\esize+\esize,5) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
 
-  \draw[fill=r1d!50!white] (3.0,6.0) rectangle (2.5,6.5) node[pos=.5] {21}; % OFF-DIAG
-  \draw[fill=r1d!50!white] (3.0,6.0) rectangle (3.5,6.5) node[pos=.5] {22}; 
-  \draw[fill=r1d!50!white] (4.0,6.0) rectangle (5.0,6.5) node[pos=.5] {23}; 
-  \draw[fill=r1d!50!white] (3.5,6.0) rectangle (4.0,5.0) node[pos=.5] {24}; 
-  \draw[fill=r1d!50!white] (5.0,6.0) rectangle (6.5,5.0) node[pos=.5] {25}; 
-  \draw[fill=r1d!50!white] (4.0,5.0) rectangle (5.0,3.5) node[pos=.5] {26}; 
-  \draw[fill=r1d!50!white] (6.5,5.0) rectangle (7.5,3.5) node[pos=.5] {27}; 
-  \draw[fill=r1d!50!white] (5.0,3.5) rectangle (6.5,2.5) node[pos=.5] {28}; 
-  \draw[fill=r1d!50!white] (7.5,3.5) rectangle (8.5,2.5) node[pos=.5] {29}; 
-
-
-  % RANK 2
-  \draw[fill=r2d] (7.5,2.5) rectangle (8.5,1.5)  node[pos=.5] {10}; 
-  \draw[fill=r2d] (8.5,1.5) rectangle (9.0,1.0)  node[pos=.5] {11}; 
-  \draw[fill=r2d] (9.0,1.0) rectangle (9.5,0.5)  node[pos=.5] {12}; 
-  \draw[fill=r2d] (9.5,0.5) rectangle (10,0)     node[pos=.5] {13}; 
-
-  \draw[fill=r2d!50!white] (0.5,2.5) rectangle (1.5,1.5) node[pos=.5] {30}; 
-  \draw[fill=r2d!50!white] (2.5,2.5) rectangle (3.0,1.5) node[pos=.5] {31}; 
-  \draw[fill=r2d!50!white] (3.0,2.5) rectangle (3.5,1.5) node[pos=.5] {32}; 
-  \draw[fill=r2d!50!white] (6.5,2.5) rectangle (7.5,1.5) node[pos=.5] {33}; 
-
+  % ROW 9
+  \foreach \col in {1} {
+    \draw[fill=r2d!60] (\col*\esize,0.0) rectangle (\col*\esize+\esize,1) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
 
   % RHS
   \edef\lasty{0}
@@ -230,95 +216,100 @@ is used to divide \textit{values} array into separate rows. It's size is equal t
   % =====================================================
 
   % RHS OFFSETS
-  \edef\ybot{-2.0}
-  \edef\cheight{0.5}
+  \edef\ybot{-1.0}
+  \edef\esize{0.8}
 
   \edef\xnum{0}
   \edef\lastblockoffset{0}
-  \edef\lastyoffset{\ybot-\cheight*0.8}
+  \edef\lastyoffset{\ybot-\esize*0.8}
 
   % ROWS NON ZEROS
-  \pgfmathparse{\ybot-\cheight*2.2}
+  \pgfmathparse{\ybot-\esize*2.2}
   \xdef\ybot{\pgfmathresult}
-
-  \edef\xnum{0}
-  \edef\lastblockoffset{0}
-  \edef\lastyoffset{\ybot-\cheight*0.8}
 
   % MATRIX OFFSETS
-  \pgfmathparse{\ybot-\cheight*2}
-  \xdef\ybot{\pgfmathresult}
-  \edef\cwidth{0.3}
-
-  \node[scale=0.8] at (-0.6,\ybot+\cheight/2) {$row\_ptr$};
+  \node[scale=0.8] at (-0.6,\ybot+\esize/2) {$row\_ptr$};
 
   \edef\xnum{0}
   \edef\lastblockoffset{0}
-  \edef\lastyoffset{\ybot-\cheight*1.8}
+  \edef\middlepoint{\ybot-\esize*0.8}
 
-  \foreach \offset in {0,4,5,6,7,11,20,24,33,35,37,38,39,40,41,43,45,51,57,63,69} {
-    \pgfmathparse{\cwidth*\offset}
+  \foreach \offset in {0,4,4,4,4,9,14,14,14,15} {
+    \pgfmathparse{\esize*\offset}
     \xdef\lastblockoffset{\pgfmathresult}
 
-    \pgfmathparse{\lastyoffset+\cheight/10}
-    \xdef\lastyoffset{\pgfmathresult}
-
-    \ifthenelse{\xnum<3}
-    { \draw[fill=r0d] (\xnum*0.5,\ybot) rectangle (\xnum*0.5+0.5,\ybot+\cheight) node[pos=.5] {\offset}; }
+    \ifthenelse{\xnum<4}
+    { \draw[fill=r0d!60] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
     {
-      \ifthenelse{\xnum<7}
-      { \draw[fill=r1d] (\xnum*0.5,\ybot) rectangle (\xnum*0.5+0.5,\ybot+\cheight) node[pos=.5] {\offset}; }
+      \ifthenelse{\xnum<9}
+      { \draw[fill=r1d!60] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
       {
-        \ifthenelse{\xnum<8}
-        { \draw[fill=white] (\xnum*0.5,\ybot) rectangle (\xnum*0.5+0.5,\ybot+\cheight) node[pos=.5] {\offset}; }
+        \ifthenelse{\xnum<15}
+        { \draw[fill=white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
         {
           \ifthenelse{\xnum<12}
-          { \draw[fill=r0d!50!white] (\xnum*0.5,\ybot) rectangle (\xnum*0.5+0.5,\ybot+\cheight) node[pos=.5] {\offset}; }
+          { \draw[fill=r0d!50!white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
           { 
             \ifthenelse{\xnum<22}
-            { \draw[fill=r1d!50!white] (\xnum*0.5,\ybot) rectangle (\xnum*0.5+0.5,\ybot+\cheight) node[pos=.5] {\offset}; }
-            { \draw[fill=white] (\xnum*0.5,\ybot) rectangle (\xnum*0.5+0.5,\ybot+\cheight) node[pos=.5] {\offset}; }
+            { \draw[fill=r1d!50!white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
+            { \draw[fill=white] (\xnum*\esize,\ybot) rectangle (\xnum*\esize+\esize,\ybot+\esize) node[pos=.5] {\offset}; }
           }
         }
       }
     }
 
-    \ifthenelse{\xnum<15}
-    { \draw[>=stealth,->] (\xnum*0.5+\cheight/2,\ybot) |- (\lastblockoffset,\lastyoffset) -| (\lastblockoffset,\ybot-2*\cheight); }
-    { }
+    \ifthenelse{\xnum<1}
+    { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.2) -| (\lastblockoffset,\ybot-\esize); }
+    {
+      \ifthenelse{\xnum<5}
+      { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.15*\xnum-0.15) -| (\lastblockoffset,\ybot-\esize); }
+      {
+        \ifthenelse{\xnum<15}
+        { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.1*\xnum-0.45) -| (\lastblockoffset,\ybot-\esize); }
+        { }
+      }
+    }
 
     \pgfmathparse{int(\xnum+1)}
     \xdef\xnum{\pgfmathresult}
   }
 
   % MATRIX DATA
-  \pgfmathparse{\ybot-\cheight*3}
+  \pgfmathparse{\ybot-\esize*2}
   \xdef\ybot{\pgfmathresult}
 
-  \node[scale=0.8] at (-0.5,\ybot+\cheight/2) {$values$};
+  \node[scale=0.8] at (-0.5,\ybot+\esize/2) {$values$};
 
-  % Diagonal
-  \draw[fill=r0d]  (0* \cwidth,\ybot) rectangle (4* \cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 2};
-  \draw[fill=r0d]  (4* \cwidth,\ybot) rectangle (5* \cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 4};
-  \draw[fill=r0d]  (5* \cwidth,\ybot) rectangle (6* \cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 5};
-  \draw[fill=r1d]  (6* \cwidth,\ybot) rectangle (7* \cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 6};
-  \draw[fill=r1d]  (7* \cwidth,\ybot) rectangle (11*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 7};
-  \draw[fill=r1d]  (11*\cwidth,\ybot) rectangle (20*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 8};
-  \draw[fill=r1d]  (20*\cwidth,\ybot) rectangle (24*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 9};
-  \draw[fill=white](24*\cwidth,\ybot) rectangle (33*\cwidth,\ybot+\cheight) node[pos=0.5] {};
-  % Off-Diagonal
-  \draw[fill=r0d!50!white] (33*\cwidth,\ybot) rectangle (35*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 14};
-  \draw[fill=r0d!50!white] (35*\cwidth,\ybot) rectangle (37*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 16};
-  \draw[fill=r0d!50!white] (37*\cwidth,\ybot) rectangle (38*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 17};
-  \draw[fill=r0d!50!white] (38*\cwidth,\ybot) rectangle (39*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 19};
-  \draw[fill=r1d!50!white] (39*\cwidth,\ybot) rectangle (40*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 21};
-  \draw[fill=r1d!50!white] (40*\cwidth,\ybot) rectangle (41*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 22};
-  \draw[fill=r1d!50!white] (41*\cwidth,\ybot) rectangle (43*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize 23};
-  \draw[fill=r1d!50!white] (43*\cwidth,\ybot) rectangle (45*\cwidth,\ybot+\cheight) node[pos=0.5] {\footnotesize $\dots$};
+  % Row 0
+  \edef\elementnum{1}
+  \foreach \i in {0,...,3} {
+    \draw[fill=r0d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
 
-  \draw [mbrace] (0 *\cwidth,\ybot)  -- (24*\cwidth,\ybot) node[bottomlabel] {$diagonal\_data$};
-  \draw [mbrace] (24*\cwidth,\ybot)  -- (33*\cwidth,\ybot) node[bottomlabel] {$max\_block\_size^{(1)} \cdot max\_block\_size^{(1)}=9$};
-  \draw [mbrace] (33*\cwidth,\ybot)  -- (45*\cwidth,\ybot) node[bottomlabel] {$off\_diagonal\_data$};
+  % Row 4
+  \foreach \i in {4,...,8} {
+    \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  % Row 5
+  \foreach \i in {9,...,13} {
+    \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  % Row 6
+  \foreach \i in {14,...,14} {
+    \draw[fill=r2d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\footnotesize \elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  \draw [mbrace] (0 *\esize,\ybot)  -- (15*\esize,\ybot) node[bottomlabel] {$nnz$};
   \end{tikzpicture}
   \caption{Example of Compressed Sparse Row (CSR) matrix format}
   \label{csr_format}
