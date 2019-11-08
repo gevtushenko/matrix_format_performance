@@ -63,7 +63,7 @@ __global__ void scoo_spmv_kernel (
   // __shared__ data_type cache[slice_size][lane_size];
 
   const unsigned int slice_id = blockIdx.x;
-  const unsigned int limit = (slice_id != n_slices - 1) ? slice_size : n_rows % slice_size;
+  const unsigned int limit = (slice_id != n_slices - 1) ? slice_size : ((n_rows - 1) % slice_size) + 1;
 
   const unsigned int begin = slices_ptr[slice_id];
   const unsigned int end = slices_ptr[slice_id + 1];
@@ -87,12 +87,7 @@ __global__ void scoo_spmv_kernel (
   {
     data_type sum = 0.0;
     for (unsigned int i = 0; i < lane_size; i++)
-    {
-      if (0)
-        if (slice_row_begin + index == 3289)
-          printf ("cache[%i] = %.20g\n", i, cache[index * lane_size + i]);
       sum += cache[index * lane_size + i];
-    }
     y[slice_row_begin + index] = sum;
   }
 }
