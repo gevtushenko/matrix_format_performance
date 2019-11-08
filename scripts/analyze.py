@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-path_to_results = '../results/mkl_ht_1_tb_1'
+path_to_results = '../results/scoo'
 
 
 def setup_printer():
@@ -34,7 +34,6 @@ def calculate_speedup(merged, source):
 
 def print_stats(label, speedup, nlargest=3):
     print("Data for {} => ".format(label))
-    print(speedup.nlargest(100, 'CPU CSR (mkl)'))
     #print(speedup.nlargest(nlargest, 'GPU COO')[['CPU CSR', 'GPU COO', 'nnz']])
     #print(speedup.nlargest(nlargest, 'GPU ELL')[['CPU CSR', 'GPU ELL', 'nnz']])
     #print(speedup.nlargest(nlargest, 'GPU HYBRID 0')[['CPU CSR', 'GPU HYBRID 0', 'nnz']])
@@ -49,7 +48,8 @@ float_speedup = calculate_speedup(merged_df, source_df)
 source_df, merged_df = load_data('{}/double.json'.format(path_to_results))
 double_speedup = calculate_speedup(merged_df, source_df)
 
-min_nnz_to_compare = 50000
+# min_nnz_to_compare = 50000
+min_nnz_to_compare = 0
 float_speedup = float_speedup[float_speedup['nnz'] > min_nnz_to_compare]
 double_speedup = double_speedup[double_speedup['nnz'] > min_nnz_to_compare]
 
@@ -64,10 +64,15 @@ print_stats('double', double_speedup)
 # sns.distplot(float_speedup['CPU CSR Parallel'])
 # sns.distplot(float_speedup['CPU CSR (mkl)'])
 
-sns.distplot(float_speedup['GPU CSR (vector)'])
-sns.distplot(float_speedup['GPU CSR-Adaptive'])
-
-sns.jointplot(data=float_speedup, x='nnzpr', y='GPU CSR', kind='reg')
-sns.jointplot(data=float_speedup, x='nnzpr', y='GPU ELL', kind='reg')
-
+sns.distplot(float_speedup['GPU COO'], label='GPU COO')
+sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
+plt.legend(prop={'size': 22})
 plt.show()
+
+sns.distplot(float_speedup['GPU CSR (vector)'], label='GPU CSR (vector)')
+sns.distplot(float_speedup['GPU CSR-Adaptive'], label='GPU CSR-Adaptive')
+plt.legend(prop={'size': 22})
+plt.show()
+
+# sns.jointplot(data=float_speedup, x='nnzpr', y='GPU CSR', kind='reg')
+# sns.jointplot(data=float_speedup, x='nnzpr', y='GPU ELL', kind='reg')
