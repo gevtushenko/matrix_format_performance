@@ -11,6 +11,7 @@
 
 template <typename data_type>
 measurement_class gpu_scoo_spmv (
+    bool print_diff,
     const scoo_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &r_index,

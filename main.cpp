@@ -135,20 +135,30 @@ vector<measurement_class> perform_measurement (
   time_printer single_core_timer (cpu_naive_time);
   single_core_timer.print_time (measurements.back ());
 
+  auto measure_multiple_times = [&] (const std::function<measurement_class(bool)> &action)
+  {
+    measurement_class result;
+    const unsigned int measurements_count = 30;
+    for (unsigned int measurement_id = 0; measurement_id < measurements_count; measurement_id++)
+      result += action (measurement_id == 0);
+    result.finalize ();
+
+    measurements.push_back (result);
+    return result;
+  };
+
   double cpu_parallel_naive_time {};
 
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_multi_thread_naive");
-    auto cpu_parallel_naive = cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ());
-    measurements.push_back (cpu_parallel_naive);
+    auto cpu_parallel_naive = measure_multiple_times ([&](bool) { return cpu_csr_spmv_multi_thread_naive (*csr_matrix, x.get (), cpu_y.get ()); });
     cpu_parallel_naive_time = cpu_parallel_naive.get_elapsed ();
     single_core_timer.print_time (cpu_parallel_naive);
   }
 
   {
     auto duration = cpp_itt::create_event_duration ("cpu_csr_spmv_mkl");
-    auto cpu_time = cpu_csr_spmv_mkl (*csr_matrix, x.get (), cpu_y.get (), reference_answer.get ());
-    measurements.push_back (cpu_time);
+    auto cpu_time = measure_multiple_times ([&](bool) { return cpu_csr_spmv_mkl (*csr_matrix, x.get (), cpu_y.get (), reference_answer.get ()); });
     single_core_timer.print_time (cpu_time);
   }
 
@@ -166,68 +176,58 @@ vector<measurement_class> perform_measurement (
     cpp_itt::quiet_region region;
 
     {
-      auto gpu_time = gpu_csr_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_csr_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     {
       cpu_csr_spmv_single_thread_naive_with_reduce_order (*csr_matrix, x.get (), reference_answer_for_reduce_order.get ());
-      auto gpu_time = gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_csr_vector_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer_for_reduce_order.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     {
-      auto gpu_time = gpu_csr_adaptive_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_csr_adaptive_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     {
-      auto gpu_time = gpu_csr_cusparse_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_csr_cusparse_spmv<data_type> (*csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     if (CHECK_CUSP)
     {
-      auto gpu_time = gpu_csr_cusp_spmv<data_type> (mtx, *csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_csr_cusp_spmv<data_type> (mtx, *csr_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     {
-      auto gpu_time = gpu_ell_spmv<data_type> (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_ell_spmv<data_type> (*ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     if (CHECK_CUSP)
     {
-      auto gpu_time = gpu_ell_cusp_spmv<data_type> (mtx, *ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_ell_cusp_spmv<data_type> (mtx, *ell_matrix, A, col_ids, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     {
-      auto gpu_time = gpu_coo_spmv<data_type> (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_coo_spmv<data_type> (*coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     {
       scoo_matrix_class scoo_matrix (sm_count, shared_mem_size, *csr_matrix);
-      auto gpu_time = gpu_scoo_spmv<data_type> (scoo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool print_diff) { return gpu_scoo_spmv<data_type> (print_diff, scoo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     if (CHECK_CUSP)
     {
-      auto gpu_time = gpu_coo_cusp_spmv<data_type> (mtx, *coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_coo_cusp_spmv<data_type> (mtx, *coo_matrix, A, col_ids, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
     }
 
     resizable_gpu_memory<data_type> A_coo;
@@ -236,9 +236,10 @@ vector<measurement_class> perform_measurement (
     {
       hybrid_matrix_class<data_type> hybrid_matrix (*csr_matrix);
       hybrid_matrix.allocate(*csr_matrix, 0.2);
-      auto gpu_time = gpu_hybrid_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ());
+      auto gpu_time = measure_multiple_times ([&](bool) { return gpu_hybrid_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
+      auto gpu_time_atomic = measure_multiple_times ([&](bool) { return gpu_hybrid_atomic_spmv<data_type> (hybrid_matrix, A, A_coo, col_ids, col_ids_coo, row_ptr, x_gpu, y, x.get (), reference_answer.get ()); });
       multi_core_timer.print_time (gpu_time);
-      measurements.push_back (gpu_time);
+      multi_core_timer.print_time (gpu_time_atomic);
     }
 
     if (0)
@@ -287,6 +288,108 @@ string get_filename (const string &path)
   return path;
 }
 
+#include "nvml.h"
+
+class gpu_frequency_controller
+{
+  nvmlDevice_t nvmlDeviceId;
+
+public:
+  gpu_frequency_controller ()
+  {
+    nvmlReturn_t nvml_error = nvmlInit ();
+  }
+
+  void fix_frequency ()
+  {
+    int active_cuda_device = 0;
+    cudaGetDevice (&active_cuda_device);
+
+    //1. Get device properties of active CUDA device
+    cudaDeviceProp activeCUDAdeviceProp;
+    cudaGetDeviceProperties (&activeCUDAdeviceProp, active_cuda_device);
+
+    //2. Get number of NVML devices
+    unsigned int nvmlDeviceCount = 0;
+    nvmlDeviceGetCount ( &nvmlDeviceCount );
+
+    //3. Loop over all NVML devices
+    for ( unsigned int nvmlDeviceIdx = 0;
+          nvmlDeviceIdx < nvmlDeviceCount;
+          ++nvmlDeviceIdx )
+    {
+      //4. Obtain NVML device Id
+      nvmlDeviceGetHandleByIndex ( nvmlDeviceIdx, &nvmlDeviceId );
+
+      //5. Query PCIe Info of the NVML device
+      nvmlPciInfo_t nvmPCIInfo;
+      nvmlDeviceGetPciInfo ( nvmlDeviceId, &nvmPCIInfo );
+
+      //6. Compare NVML device PCI-E info with CUDA device properties
+      if ( static_cast<unsigned int>(activeCUDAdeviceProp.pciBusID)
+           == nvmPCIInfo.bus &&
+           static_cast<unsigned int>(activeCUDAdeviceProp.pciDeviceID)
+           == nvmPCIInfo.device &&
+           static_cast<unsigned int>(activeCUDAdeviceProp.pciDomainID)
+           == nvmPCIInfo.domain )
+        break;
+    }
+
+    //Query current application clock setting
+    unsigned int appSMclock = 0;
+    unsigned int appMemclock = 0;
+    nvmlDeviceGetApplicationsClock ( nvmlDeviceId,
+                                     NVML_CLOCK_SM,
+                                     &appSMclock );
+    nvmlDeviceGetApplicationsClock ( nvmlDeviceId,
+                                     NVML_CLOCK_MEM,
+                                     &appMemclock );
+
+//Query maximum application clock setting
+    unsigned int maxSMclock = 0;
+    unsigned int maxMemclock = 0;
+    nvmlDeviceGetMaxClockInfo ( nvmlDeviceId,
+                                NVML_CLOCK_SM,
+                                &maxSMclock );
+    nvmlDeviceGetMaxClockInfo ( nvmlDeviceId,
+                                NVML_CLOCK_MEM,
+                                &maxMemclock );
+
+    fmt::print ("Max SM Clock: {}", maxSMclock);
+
+    nvmlEnableState_t isRestricted;
+    nvmlDeviceGetAPIRestriction ( nvmlDeviceId,
+                                  NVML_RESTRICTED_API_SET_APPLICATION_CLOCKS,
+                                  &isRestricted);
+
+    if ( NVML_FEATURE_DISABLED == isRestricted )
+    {
+      // auto return_code = nvmlDeviceSetApplicationsClocks (nvmlDeviceId, maxMemclock, maxSMclock); This function is not supported on RTX...
+      auto return_code = nvmlDeviceSetGpuLockedClocks (nvmlDeviceId, maxSMclock, maxSMclock);
+      if (return_code != NVML_SUCCESS)
+        fmt::print ("Can't fix gpu frequencies\n");
+    }
+  }
+
+  ~gpu_frequency_controller()
+  {
+    nvmlDeviceResetGpuLockedClocks (nvmlDeviceId);
+    // nvmlDeviceResetApplicationsClocks (nvmlDeviceId);
+    nvmlShutdown ();
+  }
+};
+
+/**
+ * To run this tests you should:
+ *
+ * 1) Set cpu power mode:      sudo cpupower frequency-set --governor performance
+ * 2) Fix cpu frequencies:     sudo cpupower frequency-set --min 4500000
+ * 3) Check gpu frequencies:   sudo nvidia-smi -ac
+ * 4) Enable persistence mode: sudo nvidia-smi -pm ENABLED -i 0
+ * 5) Fix mem,gpu frequencies: sudo nvidia-smi -ac 7000,2100
+ *
+ * Optionally restore defaults after benchmarks: sudo nvidia-smi -ac 6800,1515
+ */
 int main(int argc, char *argv[])
 {
   if (argc != 2)
@@ -301,9 +404,12 @@ int main(int argc, char *argv[])
 
   int gpu_id = 0;
 
+  gpu_frequency_controller gpu_frequency;
+
   if (!CHECK_CPU)
   {
     cudaSetDevice (gpu_id);
+    gpu_frequency.fix_frequency ();
 
     cudaDeviceProp prop {};
     cudaGetDeviceProperties (&prop, gpu_id);

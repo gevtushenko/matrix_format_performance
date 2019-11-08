@@ -1089,10 +1089,10 @@ measurement_class gpu_hybrid_atomic_spmv (
 
   const double elapsed = milliseconds / 1000;
   return measurement_class (
-      "GPU Hybrid (atomic TODO)",
+      "GPU Hybrid (atomic)",
       elapsed,
-      1,
-      1);
+      0,
+      0);
 }
 
 /// Perform y = y + x

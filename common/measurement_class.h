@@ -13,6 +13,7 @@ class measurement_class
   const size_t giga = 1E+9;
 
 public:
+  measurement_class () = default;
   measurement_class (
       std::string format,
       double elapsed,
@@ -25,11 +26,35 @@ public:
 
   const std::string &get_format () const { return matrix_format; }
 
+  measurement_class & operator+=(const measurement_class &rhs)
+  {
+    elapsed += rhs.get_elapsed ();
+    effective_bandwidth += rhs.get_effective_bandwidth ();
+    computational_throughput += rhs.get_computational_throughput ();
+
+    matrix_format = rhs.get_format ();
+    measurements_count++;
+
+    return *this;
+  }
+
+  void finalize ()
+  {
+    if (measurements_count)
+    {
+      elapsed /= measurements_count;
+      effective_bandwidth /= measurements_count;
+      computational_throughput /= measurements_count;
+    }
+  }
+
 private:
   double elapsed {};
   double effective_bandwidth {};
   double computational_throughput {};
   std::string matrix_format;
+
+  unsigned int measurements_count {};
 };
 
 template <typename data_type>

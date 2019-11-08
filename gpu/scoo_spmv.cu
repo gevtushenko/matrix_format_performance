@@ -87,7 +87,12 @@ __global__ void scoo_spmv_kernel (
   {
     data_type sum = 0.0;
     for (unsigned int i = 0; i < lane_size; i++)
+    {
+      if (0)
+        if (slice_row_begin + index == 3289)
+          printf ("cache[%i] = %.20g\n", i, cache[index * lane_size + i]);
       sum += cache[index * lane_size + i];
+    }
     y[slice_row_begin + index] = sum;
   }
 }
@@ -107,6 +112,7 @@ unsigned int find_next_multiple_of (unsigned int number, unsigned int multiple)
 
 template <typename data_type>
 measurement_class gpu_scoo_spmv (
+    bool print_diff,
     const scoo_matrix_class<data_type> &matrix,
     resizable_gpu_memory<data_type> &A,
     resizable_gpu_memory<unsigned int> &r_index,
@@ -176,7 +182,8 @@ measurement_class gpu_scoo_spmv (
   cudaMemcpy (reusable_vector, y.get (), y_size * sizeof (data_type), cudaMemcpyDeviceToHost);
   cudaFree (d_slices_ptr);
 
-  compare_results (y_size, reusable_vector, reference_y);
+  if (print_diff)
+    compare_results (y_size, reusable_vector, reference_y);
 
   const double elapsed = milliseconds / 1000;
 
@@ -185,6 +192,7 @@ measurement_class gpu_scoo_spmv (
 
 template
 measurement_class gpu_scoo_spmv (
+    bool print_diff,
     const scoo_matrix_class<float> &matrix,
     resizable_gpu_memory<float> &A,
     resizable_gpu_memory<unsigned int> &r_index,
@@ -197,6 +205,7 @@ measurement_class gpu_scoo_spmv (
 
 template
 measurement_class gpu_scoo_spmv (
+    bool print_diff,
     const scoo_matrix_class<double> &matrix,
     resizable_gpu_memory<double> &A,
     resizable_gpu_memory<unsigned int> &r_index,
