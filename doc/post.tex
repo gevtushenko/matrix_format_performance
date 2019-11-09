@@ -5,9 +5,19 @@
 \usepackage{ifthen}
 \usepackage{caption}
 \usepackage{subfig}
+\usepackage{listings}
+\usepackage{geometry}
+ \geometry{
+	 a4paper,
+	 left=25mm,
+	 right=20mm,
+	 top=20mm,
+	 bottom=20mm,
+ }
 
 \usetikzlibrary{calc,positioning,shadows.blur,decorations.pathreplacing,decorations.pathmorphing}
 \usepackage{etoolbox}
+
 
 \definecolor{r0d}{RGB}{255,214,226}
 \definecolor{r1d}{RGB}{165,201,239}
@@ -151,12 +161,11 @@ The \textit{Compressed Sparse Row} (CSR) format is a general sparse matrix forma
 non-zeroes' \textit{columns} and matrix \textit{values} (fig. \ref{csr_format}). The row's non-zero values are stored consequentially in \textit{values} array. The \textit{row\_ptr} array
 is used to divide \textit{values} array into separate rows. It's size is equal to $n\_rows + 1$. The last entry in \textit{row\_ptr} stores number of non-zeroes (NNZ) in the
 matrix. That allows fast querying of non-zeroes number in a particular row ($row\_ptr[row+1] - row\_ptr[row]$).
-For each non-zero value column index is stored in 
-\textit{columns} array.
+For each non-zero value column index is stored in \textit{columns} array.
 
 \begin{figure}[H]
   \centering
-  \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}, scale=0.8]
+  \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}, scale=0.85]
 
 	\draw[round] (-1.0,0) rectangle (10.15,2.0);
   \draw[round] (-1.0,2.0) rectangle (10.15,6.0);
@@ -354,7 +363,9 @@ For each non-zero value column index is stored in
   \label{csr_format}
 \end{figure}
 
-General CSR SpMV implementation works at the granularity of threads per row. This implementation is usually referenced as CSR-Scalar (list. \ref{csr_scalar}).
+Let's assume for simplicity that there are four threads in each CUDA thread block. General CSR SpMV implementation works at the granularity 
+of threads per row (fig. \ref{csr_format_work_distribution}). Hence, the matrix on figure \ref{csr_format} is processed by three thread blocks. 
+This implementation is usually referenced as CSR-Scalar (list. \ref{csr_scalar}).
 
 \begin{figure}[H]
   \centering
@@ -428,9 +439,16 @@ __global__ void csr_spmv_kernel (
 	}
 }
 \end{minted}
-\caption{SpMV kernel for the CSR sparse matrix format (scalar)}
+\caption{Naive SpMV kernel for the CSR-Scalar sparse matrix format}
 \label{csr_scalar}
 \end{listing}
+
+\begin{figure}[H]
+\centering
+\subfloat[CSR-Scalar speedup (float) \label{csr_scalar_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/csr_float_dist.pdf}}
+\qquad %
+\subfloat[CSR-Scalar speedup (double) \label{csr_scalar_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_double_dist.pdf}}
+\end{figure}
 
 \begin{listing}[H]
 \begin{minted}[linenos,tabsize=2]{cuda}

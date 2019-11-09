@@ -65,17 +65,24 @@ print_stats('double', double_speedup)
 # sns.distplot(float_speedup['CPU CSR (mkl)'])
 
 
-def dist_show(df, target):
+def dist_show(df, target, filename=''):
+    plt.figure(figsize=(16, 6))
     for limit in [10000, 100000]:
         speedup = df[df['nnz'] > limit]
         sns.distplot(speedup[target], label='{} (nnz>{}, {} matrices)'.format(target, limit, len(speedup.index)))
-    plt.legend(prop={'size': 22})
     plt.xlabel('Speedup')
     plt.xticks(range(40))
-    plt.show()
+
+    if filename:
+        plt.legend(prop={'size': 12})
+        plt.savefig(filename, dpi=200, bbox_inches='tight')
+    else:
+        plt.legend(prop={'size': 22})
+        plt.show()
 
 
-dist_show(float_speedup, 'GPU CSR')
+dist_show(float_speedup, 'GPU CSR', '../doc/img/csr_float_dist.pdf')
+dist_show(double_speedup, 'GPU CSR', '../doc/img/csr_double_dist.pdf')
 
 
 # sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
