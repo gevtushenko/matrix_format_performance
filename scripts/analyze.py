@@ -64,15 +64,26 @@ print_stats('double', double_speedup)
 # sns.distplot(float_speedup['CPU CSR Parallel'])
 # sns.distplot(float_speedup['CPU CSR (mkl)'])
 
-sns.distplot(float_speedup['GPU COO'], label='GPU COO')
-sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
-plt.legend(prop={'size': 22})
-plt.show()
 
-sns.distplot(float_speedup['GPU CSR (vector)'], label='GPU CSR (vector)')
-sns.distplot(float_speedup['GPU CSR-Adaptive'], label='GPU CSR-Adaptive')
-plt.legend(prop={'size': 22})
-plt.show()
+def dist_show(df, target):
+    for limit in [10000, 100000]:
+        speedup = df[df['nnz'] > limit]
+        sns.distplot(speedup[target], label='{} (nnz>{}, {} matrices)'.format(target, limit, len(speedup.index)))
+    plt.legend(prop={'size': 22})
+    plt.xlabel('Speedup')
+    plt.xticks(range(40))
+    plt.show()
+
+
+dist_show(float_speedup, 'GPU CSR')
+
+
+# sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
+
+# sns.distplot(float_speedup['GPU CSR (vector)'], label='GPU CSR (vector)')
+# sns.distplot(float_speedup['GPU CSR-Adaptive'], label='GPU CSR-Adaptive')
+# plt.legend(prop={'size': 22})
+# plt.show()
 
 # sns.jointplot(data=float_speedup, x='nnzpr', y='GPU CSR', kind='reg')
 # sns.jointplot(data=float_speedup, x='nnzpr', y='GPU ELL', kind='reg')
