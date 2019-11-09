@@ -14,3 +14,5 @@ doc/post.log
 doc/post.pdf
 
 materials/cusp-library/.hg/cache/
+
+doc/_minted-post/

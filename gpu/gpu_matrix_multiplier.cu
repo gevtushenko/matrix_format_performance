@@ -35,10 +35,10 @@ __global__ void csr_spmv_kernel (
     const int row_start = row_ptr[row];
     const int row_end = row_ptr[row + 1];
 
-    data_type dot = 0;
+    data_type sum = 0;
     for (unsigned int element = row_start; element < row_end; element++)
-      dot += data[element] * x[col_ids[element]];
-    y[row] = dot;
+      sum += data[element] * x[col_ids[element]];
+    y[row] = sum;
   }
 }
 
