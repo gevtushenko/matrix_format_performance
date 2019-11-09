@@ -347,32 +347,69 @@ For each non-zero value column index is stored in
 General CSR SpMV implementation works at the granularity of threads per row. This implementation is usually referenced as CSR-Scalar (list. \ref{csr_scalar}).
 
 \begin{listing}[H]
-  \begin{minted}[linenos]{cuda}
-  template <typename data_type>
-  __global__ void csr_spmv_kernel (
-      unsigned int n_rows,
-      const unsigned int *col_ids,
-      const unsigned int *row_ptr,
-      const data_type *data,
-      const data_type *x,
-      data_type *y)
+\begin{minted}[linenos,tabsize=2]{cuda}
+template <typename data_type>
+__global__ void csr_spmv_kernel (
+		unsigned int n_rows,
+		const unsigned int *col_ids,
+		const unsigned int *row_ptr,
+		const data_type *data,
+		const data_type *x,
+		data_type *y)
+{
+	unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (row < n_rows)
+	{
+		const int row_start = row_ptr[row];
+		const int row_end = row_ptr[row + 1];
+
+		data_type sum = 0;
+		for (unsigned int element = row_start; element < row_end; element++)
+			sum += data[element] * x[col_ids[element]];
+		y[row] = sum;
+	}
+}
+\end{minted}
+\caption{SpMV kernel for the CSR sparse matrix format (scalar)}
+\label{csr_scalar}
+\end{listing}
+
+\begin{listing}[H]
+\begin{minted}[linenos,tabsize=2]{cuda}
+template <typename data_type>
+__global__ void csr_spmv_vector_kernel (
+    unsigned int n_rows,
+    const unsigned int *col_ids,
+    const unsigned int *row_ptr,
+    const data_type *data,
+    const data_type *x,
+    data_type *y)
+{
+  const unsigned int thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned int warp_id = thread_id / 32;
+  const unsigned int lane = thread_id % 32;
+
+  const unsigned int row = warp_id; ///< One warp per row
+
+  data_type sum = 0;
+  if (row < n_rows)
   {
-    unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int row_start = row_ptr[row];
+    const unsigned int row_end = row_ptr[row + 1];
 
-    if (row < n_rows)
-    {
-      const int row_start = row_ptr[row];
-      const int row_end = row_ptr[row + 1];
-
-      data_type sum = 0;
-      for (unsigned int element = row_start; element < row_end; element++)
-        sum += data[element] * x[col_ids[element]];
-      y[row] = sum;
-    }
+    for (unsigned int element = row_start + lane; element < row_end; element += 32)
+      sum += data[element] * x[col_ids[element]];
   }
-  \end{minted}
-  \caption{SpMV kernel for the CSR sparse matrix format}
-  \label{csr_scalar}
+
+  sum = warp_reduce (sum);
+
+  if (lane == 0 && row < n_rows)
+    y[row] = sum;
+}
+\end{minted}
+\caption{SpMV kernel for the CSR sparse matrix format (vector)}
+\label{csr_scalar}
 \end{listing}
 
 \subsection{COO}
