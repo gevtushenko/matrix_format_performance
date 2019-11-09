@@ -172,7 +172,7 @@ For each non-zero value column index is stored in \textit{columns} array.
   \draw[round] (-1.0,6.0) rectangle (10.15,10);
 
 	
-  \node[rotate=90] at (-0.5,8){Block 0};
+  \node[rotate=90] at (-0.5,8)   {Block 0};
   \node[rotate=90] at (-0.5,4.0) {Block 1};
   \node[rotate=90] at (-0.5,1.)  {Block 2};
 
@@ -212,12 +212,12 @@ For each non-zero value column index is stored in \textit{columns} array.
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
-  \foreach \col in {2} {
+  \foreach \col in {2,3} {
     \draw[fill=r0d!60] (\col*\esize,7.0) rectangle (\col*\esize+\esize,8) node[pos=.5] {\elementnum};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
-  \foreach \col in {3} {
+  \foreach \col in {2,3} {
     \draw[fill=r0d!60] (\col*\esize,6.0) rectangle (\col*\esize+\esize,7) node[pos=.5] {\elementnum};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
@@ -277,7 +277,7 @@ For each non-zero value column index is stored in \textit{columns} array.
   \edef\lastblockoffset{0}
   \edef\middlepoint{\ybot-\esize*0.8}
 
-  \foreach \offset in {0,1,2,3,4,9,14,14,14,14,15} {
+  \foreach \offset in {0,1,2,4,6,11,16,16,16,16,17} {
     \pgfmathparse{\esize*\offset}
     \xdef\lastblockoffset{\pgfmathresult}
 
@@ -298,11 +298,11 @@ For each non-zero value column index is stored in \textit{columns} array.
       }
     }
 
-    \ifthenelse{\xnum<1}
+    \ifthenelse{\xnum<2}
     { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.2) -| (\lastblockoffset,\ybot-\esize); }
     {
       \ifthenelse{\xnum<5}
-      { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.2) -| (\lastblockoffset,\ybot-\esize); }
+      { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint-0.1*\xnum+0.4) -| (\lastblockoffset,\ybot-\esize); }
       {
         \ifthenelse{\xnum<15}
         { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.1*\xnum-0.45) -| (\lastblockoffset,\ybot-\esize); }
@@ -322,42 +322,42 @@ For each non-zero value column index is stored in \textit{columns} array.
 
   % Row 0
   \edef\elementnum{1}
-  \foreach \i in {0,...,3} {
+  \foreach \i in {0,...,5} {
     \draw[fill=r0d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
 
   % Row 4
-  \foreach \i in {4,...,8} {
+  \foreach \i in {6,...,10} {
     \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
 
   % Row 5
-  \foreach \i in {9,...,13} {
+  \foreach \i in {11,...,15} {
     \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
 
   % Row 6
-  \foreach \i in {14,...,14} {
+  \foreach \i in {16,...,16} {
     \draw[fill=r2d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\footnotesize \elementnum};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
 
-  \draw [mbrace] (0 *\esize,1.01*\ybot)  -- (15*\esize,1.01*\ybot) node[bottomlabel] {$nnz$};
-  \draw [mbrace] (15 *\esize,1.01*\ybot-0.9*\esize) -- (0* \esize,1.01*\ybot-0.9*\esize) node[bottomlabel] {};
+  \draw [mbrace] (0 *\esize,1.01*\ybot)  -- (17*\esize,1.01*\ybot) node[bottomlabel] {$nnz$};
+  \draw [mbrace] (17 *\esize,1.01*\ybot-0.9*\esize) -- (0* \esize,1.01*\ybot-0.9*\esize) node[bottomlabel] {};
 
   \pgfmathparse{\ybot-\esize*2}
   \xdef\ybot{\pgfmathresult}
   \node[scale=0.8] at (-0.6,\ybot+\esize/2) {$columns$};
 
   \edef\elementnum{0}
-  \foreach \i in {0,1,5,6} {
+  \foreach \i in {0,1,2,3,2,3} {
     \draw[fill=r0d!60] (\elementnum * \esize,\ybot) rectangle (\elementnum * \esize + \esize,\ybot+\esize) node[pos=0.5] {\i};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
@@ -379,7 +379,7 @@ For each non-zero value column index is stored in \textit{columns} array.
 \end{figure}
 
 Let's assume for simplicity that there are four threads in each CUDA thread block. General CSR SpMV implementation works at the granularity 
-of threads per row (fig. \ref{csr_format_work_distribution}). Hence, the matrix on figure \ref{csr_format} is processed by three thread blocks. 
+of threads per row (fig. \ref{csr_format_work_distribution}). Hence, the matrix in figure \ref{csr_format} is processed by three thread blocks. 
 This implementation is usually referenced as CSR-Scalar (list. \ref{csr_scalar}).
 
 \begin{figure}[H]
@@ -725,7 +725,11 @@ than CSR-Scalar (for both float and double matrices) and cuSPARSE implementation
 To discover further improvements of CSR SpMV implementation we need to consider first matrix part from figure \ref{csr_format}. In first four rows
 of matrix there is only one non-zero value per row. In that case whole warp's threads except first are idle. In this case it's possible
 for naive CSR SpMV implementation to outperform vector implementation. There is SpMV algorithm for CSR matrix that doesn't depend on nnz/row ratio.
-The CSR-Adaptive changes it's behaviour depending on the nnz in each row.
+The CSR-Adaptive changes it's behaviour depending on the nnz in each row (list. \ref{csr_adaptive}). After selecting non-zeroes per block value 
+additional array ($row\_blocks$) for storing block rows is constructed. If some rows contain small nnz, they'll be gathered into one block. Then
+CUDA threads block is assigned to each rows block. The case of multiple rows in one rows block is called CSR-Stream. If there is only one row
+in rows block, the CSR-Vector will be called. If this row exceeds $nnz\_per\_wg$ than CSR-VectorL variant will be used. The main difference between
+CSR-Vector and CSR-VectorL is that CSR-VectorL allows executing multiple CSR-VectorL on one row and then reducing the results by using atomic operations.
 
 \begin{listing}[H]
 \begin{minted}[linenos,tabsize=2]{cuda}
@@ -741,7 +745,6 @@ __global__ void csr_adaptive_spmv_kernel (
 {
   const unsigned int block_row_begin = row_blocks[blockIdx.x];
   const unsigned int block_row_end = row_blocks[blockIdx.x + 1];
-  const unsigned int nnz = row_ptr[block_row_end] - row_ptr[block_row_begin];
 
   __shared__ data_type cache[NNZ_PER_WG];
 
@@ -753,23 +756,19 @@ __global__ void csr_adaptive_spmv_kernel (
   }
   else
   {
-    const unsigned int row = block_row_begin;
-    const unsigned int warp_id = threadIdx.x / 32;
-    const unsigned int lane = threadIdx.x % 32;
+    const unsigned int nnz = row_ptr[block_row_end] - row_ptr[block_row_begin];
 
-    data_type dot = 0;
-
-    if (nnz <= 64 || NNZ_PER_WG <= 32)
+    if (nnz <= 64)
     {
       /// CSR-Vector case...
 \end{minted}
-\begin{minted}[linenos,tabsize=2,firstnumber=120]{cuda}
+\begin{minted}[linenos,tabsize=2,firstnumber=118]{cuda}
     }
     else
     {
       /// CSR-VectorL case...
 \end{minted}
-\begin{minted}[linenos,tabsize=2,firstnumber=153]{cuda}
+\begin{minted}[linenos,tabsize=2,firstnumber=151]{cuda}
     }
   }
 }
@@ -777,6 +776,219 @@ __global__ void csr_adaptive_spmv_kernel (
 \caption{SpMV kernel for the CSR-Adaptive sparse matrix format}
 \label{csr_adaptive}
 \end{listing}
+
+
+The CSR-Vector and CSR-VectorL part are quite similar CSR-Vector algorithm, so I won't include listing here. Figure \ref{csr_adaptive_format_mem_access_pattern}
+illustrates memory access pattern of CSR-Stream part. It stores partial sums in shared memory of GPU and then reduces them. The partial results in cache in
+figure \ref{csr_adaptive_format_mem_access_pattern} are calculated with $x$ filled with $1$. Source code of CSR-Stream is presented in listing \ref{csr_stream_implementation}.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}, scale=0.8]
+
+  \draw[round] (-1.0,2.0) rectangle (10.15,6.0);
+  \node[rotate=90] at (-0.5,4) {Block 0};
+
+  \foreach \y in {0,...,3} {
+    \node[scale=0.7,text=gray] at (10.3,10.0 - 1.0*\y - 4.5) {\y};
+  }
+
+  \foreach \x in {0,...,9} {
+    \node[scale=0.7,text=gray] at (1.0*\x + 0.5,1.8) {\x};
+  }
+
+  % Elements mesh
+  \draw[step=1.0,black!90!white,thin,dashed,line width=0.4] (0.0,2.0) grid (10.0,6.0);
+
+  \edef\esize{1.0}
+
+  % ROW 0
+  \edef\elementnum{1}
+  \foreach \col in {0} {
+    \draw[fill=r0d!60] (\col*\esize,5.0) rectangle (\col*\esize+\esize,6) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  \foreach \col in {1} {
+    \draw[fill=r0d!60] (\col*\esize,4.0) rectangle (\col*\esize+\esize,5) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  \foreach \col in {2,3} {
+    \draw[fill=r0d!60] (\col*\esize,3.0) rectangle (\col*\esize+\esize,4) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  \foreach \col in {2,3} {
+    \draw[fill=r0d!60] (\col*\esize,2.0) rectangle (\col*\esize+\esize,3) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+
+  % Data access
+  \pgfmathparse{2-\esize*2}
+  \xdef\ybot{\pgfmathresult}
+
+  \node[scale=0.8] at (-0.6,\ybot+\esize/2) {$values$};
+
+  \edef\elementnum{1}
+  \foreach \i in {0,...,5} {
+    \draw[fill=r0d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+	\draw[draw=black,line width=0.30mm,>=stealth,->] (\esize/2,\ybot) -- (\esize/2,\ybot-1.2*\esize) node [midway,draw=black,fill=white,thick,rounded corners=.05cm,inner sep=2pt] {$T_0$};
+	\draw[draw=black,line width=0.30mm,>=stealth,->] (\esize+\esize/2,\ybot) -- (\esize+\esize/2,\ybot-1.2*\esize) node [midway,draw=black,fill=white,thick,rounded corners=.05cm,inner sep=2pt] {$T_1$};
+	\draw[draw=black,line width=0.30mm,>=stealth,->] (2*\esize+\esize/2,\ybot) -- (2*\esize+\esize/2,\ybot-1.2*\esize) node [midway,draw=black,fill=white,thick,rounded corners=.05cm,inner sep=2pt] {$T_2$};
+	\draw[draw=black,line width=0.30mm,>=stealth,->] (3*\esize+\esize/2,\ybot) -- (3*\esize+\esize/2,\ybot-1.2*\esize) node [midway,draw=black,fill=white,thick,rounded corners=.05cm,inner sep=2pt] {$T_3$};
+
+  \pgfmathparse{\ybot-2.2*\esize}
+  \xdef\ybot{\pgfmathresult}
+
+  \edef\elementnum{1}
+  \foreach \i in {0,...,3} {
+    \draw[fill=r0d!80]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+  \foreach \i in {4,...,5} {
+    \draw[fill=gray!20]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  \node[scale=0.8] at (-1.2,\ybot+\esize/2) {$cache(it=0)$};
+
+  \pgfmathparse{\ybot-1.3*\esize}
+  \xdef\ybot{\pgfmathresult}
+  \node[scale=0.8] at (-1.2,\ybot+\esize/2) {$cache(it=1)$};
+
+  \edef\elementnum{1}
+  \foreach \i in {0,...,5} {
+    \draw[fill=r0d!80]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  \draw [mbrace] (0,\ybot-0.1) -- (6*\esize,\ybot-0.1) node[bottomlabel] {$nnz\_per\_wg$};
+
+	\draw[draw=black,line width=0.30mm,>=stealth,->] (4*\esize+\esize/2,\ybot+3.5) -- (4*\esize+\esize/2,\ybot+\esize) node [midway,draw=black,fill=white,thick,rounded corners=.05cm,inner sep=2pt] {$T_0$};
+	\draw[draw=black,line width=0.30mm,>=stealth,->] (5*\esize+\esize/2,\ybot+3.5) -- (5*\esize+\esize/2,\ybot+\esize) node [midway,draw=black,fill=white,thick,rounded corners=.05cm,inner sep=2pt] {$T_1$};
+
+  \end{tikzpicture}
+  \caption{CSR-Stream memory access pattern}
+  \label{csr_adaptive_format_mem_access_pattern}
+\end{figure}
+
+\begin{listing}[H]
+\begin{minted}[linenos,tabsize=2,firstnumber=19,fontsize=\footnotesize]{cuda}
+const unsigned int i = threadIdx.x;
+const unsigned int block_data_begin = row_ptr[block_row_begin];
+const unsigned int thread_data_begin = block_data_begin + i;
+
+if (i < nnz)
+	cache[i] = data[thread_data_begin] * x[col_ids[thread_data_begin]];
+__syncthreads ();
+
+const unsigned int threads_for_reduction = prev_power_of_2 (blockDim.x / (block_row_end - block_row_begin));
+
+if (threads_for_reduction > 1)
+	{
+		/// Reduce all non zeroes of row by multiple thread
+		const unsigned int thread_in_block = i % threads_for_reduction;
+		const unsigned int local_row = block_row_begin + i / threads_for_reduction;
+
+		data_type sum = 0.0;
+
+		if (local_row < block_row_end)
+			{
+				const unsigned int local_first_element = row_ptr[local_row] - row_ptr[block_row_begin];
+				const unsigned int local_last_element = row_ptr[local_row + 1] - row_ptr[block_row_begin];
+
+				for (unsigned int local_element = local_first_element + thread_in_block;
+						 local_element < local_last_element;
+						 local_element += threads_for_reduction)
+					{
+						sum += cache[local_element];
+					}
+			}
+		__syncthreads ();
+		cache[i] = sum;
+
+		/// Now each row has threads_for_reduction values in cache
+		for (int j = threads_for_reduction / 2; j > 0; j /= 2)
+			{
+				/// Reduce for each row
+				__syncthreads ();
+
+				const bool use_result = thread_in_block < j && i + j < NNZ_PER_WG;
+
+				if (use_result)
+					sum += cache[i + j];
+				__syncthreads ();
+
+				if (use_result)
+					cache[i] = sum;
+			}
+
+		if (thread_in_block == 0 && local_row < block_row_end)
+			y[local_row] = sum;
+	}
+else
+	{
+		/// Reduce all non zeroes of row by single thread
+		unsigned int local_row = block_row_begin + i;
+		while (local_row < block_row_end)
+			{
+				data_type sum = 0.0;
+
+				for (unsigned int j = row_ptr[local_row] - block_data_begin;
+						 j < row_ptr[local_row + 1] - block_data_begin;
+						 j++)
+					{
+						sum += cache[j];
+					}
+
+				y[local_row] = sum;
+				local_row += NNZ_PER_WG;
+			}
+	}
+\end{minted}
+\caption{CSR-Stream implementation}
+\label{csr_stream_implementation}
+\end{listing}
+
+Although CSR-Adaptive might be outperformed by CSR-Vector on some long-row matrices, it has better speedup in average (tab. \ref{csr_vector_speedup_table}, 
+fig. \ref{csr_adaptive_speedup_float} and \ref{csr_adaptive_speedup_double}). The main advantage of CSR-Adaptive is that you won't need to change
+the code that generates matrix if your code already use CSR. The matrix formats presented below don't have this quality.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 7.37  & 48.19 & 6.39 & 40.39 \\
+	 100000 & 14.27 & 48.19 & 11.72 & 40.39 \\
+	 \hline
+	\end{tabular}
+	\caption{CSR-Vector speedup}
+  \label{csr_vector_speedup_table}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\subfloat[CSR-Adaptive speedup (float) \label{csr_adaptive_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/csr_adaptive_float_dist.pdf}}
+\qquad %
+\subfloat[CSR-Adaptive speedup (double) \label{csr_adaptive_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_adaptive_double_dist.pdf}}
+\end{figure}
 
 \subsection{COO}
 
