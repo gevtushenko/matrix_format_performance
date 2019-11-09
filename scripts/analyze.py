@@ -90,6 +90,12 @@ dist_show(double_speedup, 'GPU CSR', '../doc/img/csr_double_dist.pdf')
 dist_show(float_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_float_dist.pdf')
 dist_show(double_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_double_dist.pdf')
 
+dist_show(float_speedup, 'GPU CSR (vector)', '../doc/img/csr_vector_float_dist.pdf')
+dist_show(double_speedup, 'GPU CSR (vector)', '../doc/img/csr_vector_double_dist.pdf')
+
+dist_show(float_speedup, 'GPU CSR-Adaptive', '../doc/img/csr_adaptive_float_dist.pdf')
+dist_show(double_speedup, 'GPU CSR-Adaptive', '../doc/img/csr_adaptive_double_dist.pdf')
+
 
 # sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
 

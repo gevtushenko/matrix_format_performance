@@ -202,8 +202,23 @@ For each non-zero value column index is stored in \textit{columns} array.
 
   % ROW 0
   \edef\elementnum{1}
-  \foreach \col in {0,1,5,6} {
+  \foreach \col in {0} {
     \draw[fill=r0d!60] (\col*\esize,9.0) rectangle (\col*\esize+\esize,10) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+  \foreach \col in {1} {
+    \draw[fill=r0d!60] (\col*\esize,8.0) rectangle (\col*\esize+\esize,9) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+  \foreach \col in {2} {
+    \draw[fill=r0d!60] (\col*\esize,7.0) rectangle (\col*\esize+\esize,8) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+  \foreach \col in {3} {
+    \draw[fill=r0d!60] (\col*\esize,6.0) rectangle (\col*\esize+\esize,7) node[pos=.5] {\elementnum};
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
@@ -262,7 +277,7 @@ For each non-zero value column index is stored in \textit{columns} array.
   \edef\lastblockoffset{0}
   \edef\middlepoint{\ybot-\esize*0.8}
 
-  \foreach \offset in {0,4,4,4,4,9,14,14,14,14,15} {
+  \foreach \offset in {0,1,2,3,4,9,14,14,14,14,15} {
     \pgfmathparse{\esize*\offset}
     \xdef\lastblockoffset{\pgfmathresult}
 
@@ -287,7 +302,7 @@ For each non-zero value column index is stored in \textit{columns} array.
     { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.2) -| (\lastblockoffset,\ybot-\esize); }
     {
       \ifthenelse{\xnum<5}
-      { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.15*\xnum-0.15) -| (\lastblockoffset,\ybot-\esize); }
+      { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.2) -| (\lastblockoffset,\ybot-\esize); }
       {
         \ifthenelse{\xnum<15}
         { \draw[>=stealth,->] (\xnum*\esize+\esize/2,\ybot) |- (\lastblockoffset,\middlepoint+0.1*\xnum-0.45) -| (\lastblockoffset,\ybot-\esize); }
@@ -531,8 +546,8 @@ how naive described implementation really is I've compared it with the NVIDIA CU
 \end{figure}
 
 This results shows that there is a room for optimization of CSR SpMV. First possible optimization is to assign warp per row instead of thread.
-This algorithm (list. \ref{csr_vector}) is called CSR-Vector. The vector kernel accesses indices and data contiguously, and therefore overcomes 
-the principal deficiency of the scalar approach. Unlike the previous CSR implementation, which used one thread per matrix row, this optimization requires
+This algorithm (list. \ref{csr_vector}) is called CSR-Vector. The vector kernel accesses indices and data contiguously (fig. \ref{csr_vector_format_mem_access_pattern}), 
+and therefore overcomes the principal deficiency of the scalar approach. Unlike the previous CSR implementation, which used one thread per matrix row, this optimization requires
 coordination among threads within the same warp. 
 
 \begin{figure}[H]
@@ -540,6 +555,89 @@ coordination among threads within the same warp.
 \subfloat[CSR cuSPARSE speedup (float) \label{csr_cusparse_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/csr_cusparse_float_dist.pdf}}
 \qquad %
 \subfloat[CSR cuSPARSE speedup (double) \label{csr_cusparse_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_cusparse_double_dist.pdf}}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}, scale=0.8]
+
+  \draw[round] (-3.0,2.0) rectangle (10.15,6.0);
+
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.35,5.5) node [anchor=east] {$T_0,T_1$} -- (0,5.5);
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.35,4.5) node [anchor=east] {$T_2,T_3$} -- (0,4.5);
+	\draw[draw=gray,snake it,line width=0.30mm,>=stealth,->] (-1.35,3.5) node [anchor=east] {$T_4,T_5$} -- (0,3.5);
+	\draw[draw=gray,snake it,line width=0.30mm,>=stealth,->] (-1.35,2.5) node [anchor=east] {$T_6,T_7$} -- (0,2.5);
+
+  \foreach \y in {4,...,7} {
+    \node[scale=0.7,text=gray] at (10.3,10.0 - 1.0*\y - 0.5) {\y};
+  }
+
+  \foreach \x in {0,...,9} {
+    \node[scale=0.7,text=gray] at (1.0*\x + 0.5,1.8) {\x};
+  }
+
+  % Elements mesh
+  \draw[step=1.0,black!90!white,thin,dashed,line width=0.4] (0.0,2.0) grid (10.0,6.0);
+
+  \edef\esize{1.0}
+
+  % ROW 0
+  \edef\elementnum{5}
+
+  % ROW 4
+  \foreach \col in {0,2,4,6,8} {
+    \draw[fill=r1d!60] (\col*\esize,5.0) rectangle (\col*\esize+\esize,6) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  % ROW 5
+  \foreach \col in {1,3,5,7,9} {
+    \draw[fill=r1d!60] (\col*\esize,4.0) rectangle (\col*\esize+\esize,5) node[pos=.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+  % Data access
+  \pgfmathparse{2-\esize*2}
+  \xdef\ybot{\pgfmathresult}
+
+  \node[scale=0.8] at (-0.6,\ybot+\esize/2) {$values$};
+
+  % Row 0
+  \edef\elementnum{5}
+
+  % Row 4
+  \foreach \i in {0,...,4} {
+    \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+	\draw[draw=black!100,line width=0.30mm,>=stealth,->] (\esize/2,\ybot-\esize) node [anchor=north] {$T_0^0$} -- (\esize/2,\ybot);
+	\draw[draw=black!100,line width=0.30mm,>=stealth,->] (\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_1^0$} -- (\esize+\esize/2,\ybot);
+	\draw[draw=black!70,text=black!70,line width=0.30mm,>=stealth,->] (2*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_0^1$} -- (2*\esize+\esize/2,\ybot);
+	\draw[draw=black!70,text=black!70,line width=0.30mm,>=stealth,->] (3*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_1^1$} -- (3*\esize+\esize/2,\ybot);
+	\draw[draw=black!40,text=black!40,line width=0.30mm,>=stealth,->] (4*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_0^2$} -- (4*\esize+\esize/2,\ybot);
+
+  % Row 5
+  \foreach \i in {5,...,9} {
+    \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+	\draw[draw=black!100,line width=0.30mm,>=stealth,->] (5*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_2^0$} -- (5*\esize+\esize/2,\ybot);
+	\draw[draw=black!100,line width=0.30mm,>=stealth,->]  (6*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_3^0$} -- (6*\esize+\esize/2,\ybot);
+	\draw[draw=black!70,text=black!70,line width=0.30mm,>=stealth,->]  (7*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_2^1$} -- (7*\esize+\esize/2,\ybot);
+	\draw[draw=black!70,text=black!70,line width=0.30mm,>=stealth,->]  (8*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_3^1$} -- (8*\esize+\esize/2,\ybot);
+	\draw[draw=black!40,text=black!40,line width=0.30mm,>=stealth,->]  (9*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_2^2$} -- (9*\esize+\esize/2,\ybot);
+
+  \draw [mbrace] (\esize/2,\ybot-1.8*\esize) -- (1*\esize+\esize/2,\ybot-1.8*\esize) node[bottomlabel] {$stride$};
+
+  \end{tikzpicture}
+  \caption{CSR-Scalar block's threads' work distribution}
+  \label{csr_vector_format_mem_access_pattern}
 \end{figure}
 
 In case of CSR-Vector reduction might be implemented using warp-level primitives (list. \ref{warp_reduce}). In that case the data 
@@ -596,6 +694,88 @@ __global__ void csr_spmv_vector_kernel (
 \end{minted}
 \caption{SpMV kernel for the CSR sparse matrix format (vector)}
 \label{csr_vector}
+\end{listing}
+
+CSR-Vector has better speedup (tab. \ref{csr_vector_speedup_table}) and speedup distribution (fig. \ref{csr_vector_speedup_float} and \ref{csr_vector_speedup_double}) 
+than CSR-Scalar (for both float and double matrices) and cuSPARSE implementation (for float matrices).
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 6.60  & 43.46 & 4.37 & 29.62 \\
+	 100000 & 14.40 & 43.46 & 9.50 & 29.62 \\
+	 \hline
+	\end{tabular}
+	\caption{CSR-Vector speedup}
+  \label{csr_vector_speedup_table}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\subfloat[CSR-Vector speedup (float) \label{csr_vector_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/csr_vector_float_dist.pdf}}
+\qquad %
+\subfloat[CSR-Vector speedup (double) \label{csr_vector_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_vector_double_dist.pdf}}
+\end{figure}
+
+To discover further improvements of CSR SpMV implementation we need to consider first matrix part from figure \ref{csr_format}. In first four rows
+of matrix there is only one non-zero value per row. In that case whole warp's threads except first are idle. In this case it's possible
+for naive CSR SpMV implementation to outperform vector implementation. There is SpMV algorithm for CSR matrix that doesn't depend on nnz/row ratio.
+The CSR-Adaptive changes it's behaviour depending on the nnz in each row.
+
+\begin{listing}[H]
+\begin{minted}[linenos,tabsize=2]{cuda}
+template <typename data_type>
+__global__ void csr_adaptive_spmv_kernel (
+    const unsigned int n_rows,
+    const unsigned int *col_ids,
+    const unsigned int *row_ptr,
+    const unsigned int *row_blocks,
+    const data_type *data,
+    const data_type *x,
+    data_type *y)
+{
+  const unsigned int block_row_begin = row_blocks[blockIdx.x];
+  const unsigned int block_row_end = row_blocks[blockIdx.x + 1];
+  const unsigned int nnz = row_ptr[block_row_end] - row_ptr[block_row_begin];
+
+  __shared__ data_type cache[NNZ_PER_WG];
+
+  if (block_row_end - block_row_begin > 1)
+  {
+    /// CSR-Stream case...
+\end{minted}
+\begin{minted}[linenos,tabsize=2,firstnumber=94]{cuda}
+  }
+  else
+  {
+    const unsigned int row = block_row_begin;
+    const unsigned int warp_id = threadIdx.x / 32;
+    const unsigned int lane = threadIdx.x % 32;
+
+    data_type dot = 0;
+
+    if (nnz <= 64 || NNZ_PER_WG <= 32)
+    {
+      /// CSR-Vector case...
+\end{minted}
+\begin{minted}[linenos,tabsize=2,firstnumber=120]{cuda}
+    }
+    else
+    {
+      /// CSR-VectorL case...
+\end{minted}
+\begin{minted}[linenos,tabsize=2,firstnumber=153]{cuda}
+    }
+  }
+}
+\end{minted}
+\caption{SpMV kernel for the CSR-Adaptive sparse matrix format}
+\label{csr_adaptive}
 \end{listing}
 
 \subsection{COO}
