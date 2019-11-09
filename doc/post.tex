@@ -483,7 +483,7 @@ __global__ void csr_spmv_kernel (
 Presented implementation of CSR SpMV algorithm on the GPU is usually considered very inefficient. The reasons for
 inefficiency are load balancing, thread divergence and memory access pattern. As shown on the figure \ref{csr_format_work_distribution} only half
 of the block threads has non-zeroes to process. Thus, a single dense row can arbitrarily delay the execution while all
-other cores are idle. Moreover, adjacent threads access matrix values in a strided way. When concurrent threads simultaneously 
+other cores are idle. Moreover, as shown on the figure \ref{csr_format_work_distribution} adjacent threads access matrix values in a strided way. When concurrent threads simultaneously 
 access memory addresses that are far apart in physical memory, then there is no chance for the hardware to combine the accesses. Performance
 results for naive CSR-Scalar implementation are presented in table \ref{csr_scalar_speedup_table}. 
 
@@ -505,7 +505,7 @@ results for naive CSR-Scalar implementation are presented in table \ref{csr_scal
 
 The speedup distribution is shown in figures \ref{csr_scalar_speedup_float} and \ref{csr_scalar_speedup_double}. To answer the question
 how naive described implementation really is I've compared it with the NVIDIA CUDA Sparse Matrix library (cuSPARSE) CSR implementation
-(tab. \ref{csr_cusparse_speedup_table}), which has better average speedup (fig. \ref{csr_cusparse_speedup_float} and \ref{csr_cusparse_speedup_double}).
+(tab. \ref{csr_cusparse_speedup_table}), which has better average speedup (fig. \ref{csr_cusparse_speedup_float} and \ref{csr_cusparse_speedup_double}). 
 
 \begin{table}[H]
 	\centering
@@ -530,7 +530,10 @@ how naive described implementation really is I've compared it with the NVIDIA CU
 \subfloat[CSR-Scalar speedup (double) \label{csr_scalar_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_double_dist.pdf}}
 \end{figure}
 
-This results shows that there is a room for optimization of CSR SpMV.
+This results shows that there is a room for optimization of CSR SpMV. First possible optimization is to assign warp per row instead of thread.
+This algorithm (list. \ref{csr_vector}) is called CSR-Vector. The vector kernel accesses indices and data contiguously, and therefore overcomes 
+the principal deficiency of the scalar approach. Unlike the previous CSR implementation, which used one thread per matrix row, this optimization requires
+coordination among threads within the same warp. 
 
 \begin{figure}[H]
 \centering
@@ -538,6 +541,25 @@ This results shows that there is a room for optimization of CSR SpMV.
 \qquad %
 \subfloat[CSR cuSPARSE speedup (double) \label{csr_cusparse_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_cusparse_double_dist.pdf}}
 \end{figure}
+
+In case of CSR-Vector reduction might be implemented using warp-level primitives (list. \ref{warp_reduce}). In that case the data 
+exchange is performed between registers, and more efficient than going through shared memory, which requires a load, 
+a store and an extra register to hold the address.
+
+\begin{listing}[H]
+\begin{minted}[linenos,tabsize=2]{cuda}
+template <class T>
+__device__ T warp_reduce (T val)
+{
+  for (int offset = warpSize / 2; offset > 0; offset /= 2)
+    val += __shfl_down_sync (FULL_WARP_MASK, val, offset);
+
+  return val;
+}
+\end{minted}
+\caption{Warp reduction}
+\label{warp_reduce}
+\end{listing}
 
 \begin{listing}[H]
 \begin{minted}[linenos,tabsize=2]{cuda}
