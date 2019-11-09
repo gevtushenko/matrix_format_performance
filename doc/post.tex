@@ -374,10 +374,10 @@ This implementation is usually referenced as CSR-Scalar (list. \ref{csr_scalar})
   \draw[round] (-3.0,2.0) rectangle (10.15,6.0);
   \node[rotate=90] at (-2.5,4.0) {Block 1};
 
-	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.35,5.5) node [anchor=east] {T0} -- (0,5.5);
-	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.35,4.5) node [anchor=east] {T1} -- (0,4.5);
-	\draw[draw=gray,snake it,line width=0.30mm,>=stealth,->] (-1.35,3.5) node [anchor=east] {T2} -- (0,3.5);
-	\draw[draw=gray,snake it,line width=0.30mm,>=stealth,->] (-1.35,2.5) node [anchor=east] {T3} -- (0,2.5);
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.35,5.5) node [anchor=east] {$T_0$} -- (0,5.5);
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.35,4.5) node [anchor=east] {$T_1$} -- (0,4.5);
+	\draw[draw=gray,snake it,line width=0.30mm,>=stealth,->] (-1.35,3.5) node [anchor=east] {$T_2$} -- (0,3.5);
+	\draw[draw=gray,snake it,line width=0.30mm,>=stealth,->] (-1.35,2.5) node [anchor=east] {$T_3$} -- (0,2.5);
 
   \foreach \y in {4,...,7} {
     \node[scale=0.7,text=gray] at (10.3,10.0 - 1.0*\y - 0.5) {\y};
@@ -408,6 +408,43 @@ This implementation is usually referenced as CSR-Scalar (list. \ref{csr_scalar})
     \pgfmathparse{int(\elementnum+1)}
     \xdef\elementnum{\pgfmathresult}
   }
+
+  % Data access
+  \pgfmathparse{2-\esize*2}
+  \xdef\ybot{\pgfmathresult}
+
+  \node[scale=0.8] at (-0.6,\ybot+\esize/2) {$values$};
+
+  % Row 0
+  \edef\elementnum{5}
+
+  % Row 4
+  \foreach \i in {0,...,4} {
+    \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+	\draw[draw=black!100,line width=0.30mm,>=stealth,->] (\esize/2,\ybot-\esize) node [anchor=north] {$T_0^0$} -- (\esize/2,\ybot);
+	\draw[draw=black!80,text=black!80,line width=0.30mm,>=stealth,->] (\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_0^1$} -- (\esize+\esize/2,\ybot);
+	\draw[draw=black!60,text=black!60,line width=0.30mm,>=stealth,->] (2*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_0^2$} -- (2*\esize+\esize/2,\ybot);
+	\draw[draw=black!40,text=black!40,line width=0.30mm,>=stealth,->] (3*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_0^3$} -- (3*\esize+\esize/2,\ybot);
+	\draw[draw=black!20,text=black!20,line width=0.30mm,>=stealth,->] (4*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_0^4$} -- (4*\esize+\esize/2,\ybot);
+
+  % Row 5
+  \foreach \i in {5,...,9} {
+    \draw[fill=r1d!60]  (\i * \esize,\ybot) rectangle (\i * \esize + \esize,\ybot+\esize) node[pos=0.5] {\elementnum};
+    \pgfmathparse{int(\elementnum+1)}
+    \xdef\elementnum{\pgfmathresult}
+  }
+
+	\draw[draw=black!100,line width=0.30mm,>=stealth,->] (5*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_1^0$} -- (5*\esize+\esize/2,\ybot);
+	\draw[draw=black!80,text=black!80,line width=0.30mm,>=stealth,->]  (6*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_1^0$} -- (6*\esize+\esize/2,\ybot);
+	\draw[draw=black!60,text=black!60,line width=0.30mm,>=stealth,->]  (7*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_1^0$} -- (7*\esize+\esize/2,\ybot);
+	\draw[draw=black!40,text=black!40,line width=0.30mm,>=stealth,->]  (8*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_1^0$} -- (8*\esize+\esize/2,\ybot);
+	\draw[draw=black!20,text=black!20,line width=0.30mm,>=stealth,->]  (9*\esize+\esize/2,\ybot-\esize) node [anchor=north] {$T_1^0$} -- (9*\esize+\esize/2,\ybot);
+
+  \draw [mbrace] (\esize/2,\ybot-1.8*\esize) -- (5*\esize+\esize/2,\ybot-1.8*\esize) node[bottomlabel] {$stride$};
 
   \end{tikzpicture}
   \caption{CSR-Scalar block's threads' work distribution}
@@ -443,11 +480,63 @@ __global__ void csr_spmv_kernel (
 \label{csr_scalar}
 \end{listing}
 
+Presented implementation of CSR SpMV algorithm on the GPU is usually considered very inefficient. The reasons for
+inefficiency are load balancing, thread divergence and memory access pattern. As shown on the figure \ref{csr_format_work_distribution} only half
+of the block threads has non-zeroes to process. Thus, a single dense row can arbitrarily delay the execution while all
+other cores are idle. Moreover, adjacent threads access matrix values in a strided way. When concurrent threads simultaneously 
+access memory addresses that are far apart in physical memory, then there is no chance for the hardware to combine the accesses. Performance
+results for naive CSR-Scalar implementation are presented in table \ref{csr_scalar_speedup_table}. 
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 4.57 & 32.50 & 3.78 & 29.47 \\
+	 100000 & 8.90 & 32.50 & 7.24 & 29.47 \\
+	 \hline
+	\end{tabular}
+	\caption{CSR-Scalar speedup}
+  \label{csr_scalar_speedup_table}
+\end{table}
+
+The speedup distribution is shown in figures \ref{csr_scalar_speedup_float} and \ref{csr_scalar_speedup_double}. To answer the question
+how naive described implementation really is I've compared it with the NVIDIA CUDA Sparse Matrix library (cuSPARSE) CSR implementation
+(tab. \ref{csr_cusparse_speedup_table}), which has better average speedup (fig. \ref{csr_cusparse_speedup_float} and \ref{csr_cusparse_speedup_double}).
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 5.69  & 31.44 & 4.68 & 25.42 \\
+	 100000 & 13.62 & 31.44 & 10.65 & 25.42 \\
+	 \hline
+	\end{tabular}
+	\caption{CSR (cuSPARSE) speedup}
+  \label{csr_cusparse_speedup_table}
+\end{table}
+
 \begin{figure}[H]
 \centering
 \subfloat[CSR-Scalar speedup (float) \label{csr_scalar_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/csr_float_dist.pdf}}
 \qquad %
 \subfloat[CSR-Scalar speedup (double) \label{csr_scalar_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_double_dist.pdf}}
+\end{figure}
+
+This results shows that there is a room for optimization of CSR SpMV.
+
+\begin{figure}[H]
+\centering
+\subfloat[CSR cuSPARSE speedup (float) \label{csr_cusparse_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/csr_cusparse_float_dist.pdf}}
+\qquad %
+\subfloat[CSR cuSPARSE speedup (double) \label{csr_cusparse_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_cusparse_double_dist.pdf}}
 \end{figure}
 
 \begin{listing}[H]

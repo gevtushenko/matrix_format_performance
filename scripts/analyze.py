@@ -53,8 +53,8 @@ min_nnz_to_compare = 0
 float_speedup = float_speedup[float_speedup['nnz'] > min_nnz_to_compare]
 double_speedup = double_speedup[double_speedup['nnz'] > min_nnz_to_compare]
 
-print_stats('float', float_speedup)
-print_stats('double', double_speedup)
+# print_stats('float', float_speedup)
+# print_stats('double', double_speedup)
 
 # sns.pairplot(speedup)
 
@@ -69,7 +69,10 @@ def dist_show(df, target, filename=''):
     plt.figure(figsize=(16, 6))
     for limit in [10000, 100000]:
         speedup = df[df['nnz'] > limit]
-        sns.distplot(speedup[target], label='{} (nnz>{}, {} matrices)'.format(target, limit, len(speedup.index)))
+        label = '{} (nnz>{}, {} matrices)'.format(target, limit, len(speedup.index))
+        print_stats(label, speedup[target])
+        g = sns.distplot(speedup[target], label=label)
+        g.set(xlim=(-3, 39))
     plt.xlabel('Speedup')
     plt.xticks(range(40))
 
@@ -83,6 +86,9 @@ def dist_show(df, target, filename=''):
 
 dist_show(float_speedup, 'GPU CSR', '../doc/img/csr_float_dist.pdf')
 dist_show(double_speedup, 'GPU CSR', '../doc/img/csr_double_dist.pdf')
+
+dist_show(float_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_float_dist.pdf')
+dist_show(double_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_double_dist.pdf')
 
 
 # sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
