@@ -99,6 +99,15 @@ dist_show(double_speedup, 'GPU CSR-Adaptive', '../doc/img/csr_adaptive_double_di
 dist_show(float_speedup, 'GPU ELL', '../doc/img/csr_ell_float_dist.pdf')
 dist_show(double_speedup, 'GPU ELL', '../doc/img/csr_ell_double_dist.pdf')
 
+dist_show(float_speedup, 'GPU COO', '../doc/img/coo_float_dist.pdf')
+dist_show(double_speedup, 'GPU COO', '../doc/img/coo_double_dist.pdf')
+
+dist_show(float_speedup, 'GPU SCOO', '../doc/img/scoo_float_dist.pdf')
+dist_show(double_speedup, 'GPU SCOO', '../doc/img/scoo_double_dist.pdf')
+
+dist_show(float_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_float_dist.pdf')
+dist_show(double_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_double_dist.pdf')
+
 
 # sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
 

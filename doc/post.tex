@@ -979,7 +979,7 @@ the code that generates matrix if your code already use CSR. The matrix formats 
 	 100000 & 14.27 & 48.19 & 11.72 & 40.39 \\
 	 \hline
 	\end{tabular}
-	\caption{CSR-Vector speedup}
+	\caption{CSR-Adaptive speedup}
   \label{csr_vector_speedup_table}
 \end{table}
 
@@ -999,12 +999,19 @@ row does not substantially differ from the average.
   \centering
   \begin{tikzpicture}[circ/.style = {circle, draw, inner sep=0pt, minimum size=3pt, outer sep=0pt, minimum size=6mm}, scale=0.85]
 
-  \draw[round] (-1.0,4.0) rectangle (6.15,6.0);
-  \draw[round] (-1.0,6.0) rectangle (6.15,10);
+  \draw[round] (-3.0,4.0) rectangle (6.15,6.0);
+  \draw[round] (-3.0,6.0) rectangle (6.15,10);
 
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.45,9.5) node [anchor=east] {$T_0$} -- (0,9.5);
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.45,8.5) node [anchor=east] {$T_1$} -- (0,8.5);
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->] (-1.45,7.5) node [anchor=east] {$T_2$} -- (0,7.5);
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->] (-1.45,6.5) node [anchor=east] {$T_3$} -- (0,6.5);
+
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.45,5.5) node [anchor=east] {$T_0$} -- (0,5.5);
+	\draw[draw=black,snake it,line width=0.30mm,>=stealth,->]   (-1.45,4.5) node [anchor=east] {$T_1$} -- (0,4.5);
 	
-  \node[rotate=90] at (-0.5,8)   {Block 0};
-  \node[rotate=90] at (-0.5,5.0) {Block 1};
+  \node[rotate=90] at (-2.5,8)   {Block 0};
+  \node[rotate=90] at (-2.5,5.0) {Block 1};
 
   \foreach \y in {0,...,5} {
     \node[scale=0.7,text=gray] at (6.3,10.0 - 1.0*\y - 0.5) {\y};
@@ -1151,10 +1158,102 @@ row does not substantially differ from the average.
   \label{ell_format}
 \end{figure}
 
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 6.73  & 35.47 & 5.57 & 27.92 \\
+	 100000 & 11.16 & 35.47 & 8.44 & 27.92 \\
+	 \hline
+	\end{tabular}
+	\caption{ELL speedup}
+  \label{csr_ell_speedup_table}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\subfloat[ELL speedup (float) \label{csr_ell_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/csr_ell_float_dist.pdf}}
+\qquad %
+\subfloat[ELL speedup (double) \label{csr_ell_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_ell_double_dist.pdf}}
+\end{figure}
+
 \subsection{COO}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 6.96  & 54.15 & 7.37  & 37.83 \\
+	 100000 & 10.55 & 54.15 & 11.69 & 37.83 \\
+	 \hline
+	\end{tabular}
+	\caption{COO speedup}
+  \label{csr_coo_speedup_table}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\subfloat[COO speedup (float) \label{csr_coo_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/coo_float_dist.pdf}}
+\qquad %
+\subfloat[COO speedup (double) \label{csr_coo_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/coo_double_dist.pdf}}
+\end{figure}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 6.82  & 38.63 & 4.60 & 26.78 \\
+	 100000 & 12.46 & 38.63 & 7.43 & 26.78 \\
+	 \hline
+	\end{tabular}
+	\caption{SCOO speedup}
+  \label{scoo_speedup_table}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\subfloat[SCOO speedup (float) \label{csr_scoo_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/scoo_float_dist.pdf}}
+\qquad %
+\subfloat[SCOO speedup (double) \label{csr_scoo_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/scoo_double_dist.pdf}}
+\end{figure}
 
 
 \subsection{Hybrid}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
+	 \hline
+		& \multicolumn{2}{|c|}{float} & \multicolumn{2}{|c|}{double}\\
+	 \hline
+	 NNZ lower limit & avg & max & avg & max  \\
+	 \hline
+	 10000  & 7.73  & 38.62 & 6.51  & 25.96 \\
+	 100000 & 14.92 & 38.62 & 11.59 & 25.96 \\
+	 \hline
+	\end{tabular}
+	\caption{HYB speedup}
+  \label{hyb_speedup_table}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\subfloat[HYB speedup (float) \label{hyb_scoo_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/hybrid_float_dist.pdf}}
+\qquad %
+\subfloat[HYB speedup (double) \label{hyb_scoo_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/hybrid_double_dist.pdf}}
+\end{figure}
 
 
 \section{Conclusion}
