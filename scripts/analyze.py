@@ -110,13 +110,15 @@ if update_dist_plots:
     dist_show(float_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_float_dist.pdf')
     dist_show(double_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_double_dist.pdf')
 
-csr_vector_slowdown_but_adaptive_speedup = float_speedup[float_speedup['GPU CSR (vector)'] < float_speedup['GPU CSR']]
-for limit in [10000, 100000]:
-    speedup = csr_vector_slowdown_but_adaptive_speedup[csr_vector_slowdown_but_adaptive_speedup['nnz'] > limit]
-    print_stats('CSR-Vec < GPU CSR', speedup)
-dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR', '../doc/img/csr_csr_outperform_csr_vec.pdf')
-dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR (vector)', '../doc/img/vec_csr_outperform_csr_vec.pdf')
-dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR-Adaptive', '../doc/img/ada_csr_outperform_csr_vec.pdf')
+csr_overperform_csr_vec = False
+if csr_overperform_csr_vec:
+    csr_vector_slowdown_but_adaptive_speedup = float_speedup[float_speedup['GPU CSR (vector)'] < float_speedup['GPU CSR']]
+    for limit in [10000, 100000]:
+        speedup = csr_vector_slowdown_but_adaptive_speedup[csr_vector_slowdown_but_adaptive_speedup['nnz'] > limit]
+        print_stats('CSR-Vec < GPU CSR', speedup)
+    dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR', '../doc/img/csr_csr_outperform_csr_vec.pdf')
+    dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR (vector)', '../doc/img/vec_csr_outperform_csr_vec.pdf')
+    dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR-Adaptive', '../doc/img/ada_csr_outperform_csr_vec.pdf')
 
 
 # sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
@@ -127,4 +129,5 @@ dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR-Adaptive', '../doc/
 # plt.show()
 
 # sns.jointplot(data=float_speedup, x='nnzpr', y='GPU CSR', kind='reg')
-# sns.jointplot(data=float_speedup, x='nnzpr', y='GPU ELL', kind='reg')
+sns.jointplot(data=float_speedup[float_speedup['nnz'] > 10000], x='nnzpr', y='GPU ELL', kind='reg')
+plt.show()
