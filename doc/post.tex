@@ -1158,6 +1158,35 @@ row does not substantially differ from the average.
   \label{ell_format}
 \end{figure}
 
+\begin{listing}[H]
+\begin{minted}[linenos,tabsize=2]{cuda}
+template <typename data_type>
+__global__ void ell_spmv_kernel (
+    unsigned int n_rows,
+    unsigned int elements_in_rows,
+    const unsigned int *col_ids,
+    const data_type*data,
+    const data_type*x,
+    data_type*y)
+{
+  unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (row < n_rows)
+  {
+    data_type sum = 0;
+    for (unsigned int element = 0; element < elements_in_rows; element++)
+    {
+      const unsigned int element_offset = row + element * n_rows;
+      sum += data[element_offset] * x[col_ids[element_offset]];
+    }
+    y[row] = sum;
+  }
+}
+\end{minted}
+\caption{ELL implementation}
+\label{ell_implementation}
+\end{listing}
+
 \begin{table}[H]
 	\centering
 	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
@@ -1182,6 +1211,30 @@ row does not substantially differ from the average.
 \end{figure}
 
 \subsection{COO}
+
+\begin{listing}[H]
+\begin{minted}[linenos,tabsize=2]{cuda}
+template <typename data_type>
+__global__ void coo_spmv_kernel (
+    unsigned int n_elements,
+    const unsigned int *col_ids,
+    const unsigned int *row_ids,
+    const data_type*data,
+    const data_type*x,
+    data_type*y)
+{
+  unsigned int element = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (element < n_elements)
+  {
+    const data_type dot = data[element] * x[col_ids[element]];
+    atomicAdd (y + row_ids[element], dot);
+  }
+}
+\end{minted}
+\caption{COO implementation}
+\label{coo_implementation}
+\end{listing}
 
 \begin{table}[H]
 	\centering
