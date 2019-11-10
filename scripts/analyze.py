@@ -84,29 +84,39 @@ def dist_show(df, target, filename=''):
         plt.show()
 
 
-dist_show(float_speedup, 'GPU CSR', '../doc/img/csr_float_dist.pdf')
-dist_show(double_speedup, 'GPU CSR', '../doc/img/csr_double_dist.pdf')
+update_dist_plots = False
+if update_dist_plots:
+    dist_show(float_speedup, 'GPU CSR', '../doc/img/csr_float_dist.pdf')
+    dist_show(double_speedup, 'GPU CSR', '../doc/img/csr_double_dist.pdf')
 
-dist_show(float_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_float_dist.pdf')
-dist_show(double_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_double_dist.pdf')
+    dist_show(float_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_float_dist.pdf')
+    dist_show(double_speedup, 'GPU CSR (cuSparse)', '../doc/img/csr_cusparse_double_dist.pdf')
 
-dist_show(float_speedup, 'GPU CSR (vector)', '../doc/img/csr_vector_float_dist.pdf')
-dist_show(double_speedup, 'GPU CSR (vector)', '../doc/img/csr_vector_double_dist.pdf')
+    dist_show(float_speedup, 'GPU CSR (vector)', '../doc/img/csr_vector_float_dist.pdf')
+    dist_show(double_speedup, 'GPU CSR (vector)', '../doc/img/csr_vector_double_dist.pdf')
 
-dist_show(float_speedup, 'GPU CSR-Adaptive', '../doc/img/csr_adaptive_float_dist.pdf')
-dist_show(double_speedup, 'GPU CSR-Adaptive', '../doc/img/csr_adaptive_double_dist.pdf')
+    dist_show(float_speedup, 'GPU CSR-Adaptive', '../doc/img/csr_adaptive_float_dist.pdf')
+    dist_show(double_speedup, 'GPU CSR-Adaptive', '../doc/img/csr_adaptive_double_dist.pdf')
 
-dist_show(float_speedup, 'GPU ELL', '../doc/img/csr_ell_float_dist.pdf')
-dist_show(double_speedup, 'GPU ELL', '../doc/img/csr_ell_double_dist.pdf')
+    dist_show(float_speedup, 'GPU ELL', '../doc/img/csr_ell_float_dist.pdf')
+    dist_show(double_speedup, 'GPU ELL', '../doc/img/csr_ell_double_dist.pdf')
 
-dist_show(float_speedup, 'GPU COO', '../doc/img/coo_float_dist.pdf')
-dist_show(double_speedup, 'GPU COO', '../doc/img/coo_double_dist.pdf')
+    dist_show(float_speedup, 'GPU COO', '../doc/img/coo_float_dist.pdf')
+    dist_show(double_speedup, 'GPU COO', '../doc/img/coo_double_dist.pdf')
 
-dist_show(float_speedup, 'GPU SCOO', '../doc/img/scoo_float_dist.pdf')
-dist_show(double_speedup, 'GPU SCOO', '../doc/img/scoo_double_dist.pdf')
+    dist_show(float_speedup, 'GPU SCOO', '../doc/img/scoo_float_dist.pdf')
+    dist_show(double_speedup, 'GPU SCOO', '../doc/img/scoo_double_dist.pdf')
 
-dist_show(float_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_float_dist.pdf')
-dist_show(double_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_double_dist.pdf')
+    dist_show(float_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_float_dist.pdf')
+    dist_show(double_speedup, 'GPU Hybrid (atomic)', '../doc/img/hybrid_double_dist.pdf')
+
+csr_vector_slowdown_but_adaptive_speedup = float_speedup[float_speedup['GPU CSR (vector)'] < float_speedup['GPU CSR']]
+for limit in [10000, 100000]:
+    speedup = csr_vector_slowdown_but_adaptive_speedup[csr_vector_slowdown_but_adaptive_speedup['nnz'] > limit]
+    print_stats('CSR-Vec < GPU CSR', speedup)
+dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR', '../doc/img/csr_csr_outperform_csr_vec.pdf')
+dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR (vector)', '../doc/img/vec_csr_outperform_csr_vec.pdf')
+dist_show(csr_vector_slowdown_but_adaptive_speedup, 'GPU CSR-Adaptive', '../doc/img/ada_csr_outperform_csr_vec.pdf')
 
 
 # sns.distplot(float_speedup['GPU SCOO'], label='GPU SCOO')
