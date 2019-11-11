@@ -169,8 +169,8 @@ by dividing single thread CSR SpMV execution time by GPU one.
 
 \subsection{CSR}
 The \textit{Compressed Sparse Row} (CSR) format is a general sparse matrix format. CSR format consists of three arrays: \textit{row\_ptr},
-non-zeroes' \textit{columns} and matrix \textit{values} (fig. \ref{csr_format}). The row's non-zero values are stored consequentially in an one-dimensional \textit{values} array. The \textit{row\_ptr} array
-is used to divide \textit{values} array into separate rows. It's size is equal to $n\_rows + 1$. The last entry in \textit{row\_ptr} stores number of non-zeroes (NNZ) in the
+non-zeroes' \textit{columns}, and matrix \textit{values} (fig. \ref{csr_format}). The row's non-zero values are stored consequentially in an one-dimensional \textit{values} array. The \textit{row\_ptr} array
+is used to divide \textit{values} array into separate rows. Its size is equal to $n\_rows + 1$. The last entry in \textit{row\_ptr} stores number of non-zeroes (NNZ) in the
 matrix. That allows fast querying of non-zeroes number in a particular row ($row\_ptr[row+1] - row\_ptr[row]$).
 For each non-zero value column index is stored in \textit{columns} array.
 
@@ -507,9 +507,9 @@ __global__ void csr_spmv_kernel (
 \end{listing}
 
 Presented implementation of CSR SpMV algorithm on GPU is usually considered very inefficient. The reasons for
-inefficiency are load balancing, thread divergence and memory access pattern. As shown on the figure \ref{csr_format_work_distribution} only half
-of the block threads has non-zeroes to process. Thus, a single dense row can arbitrarily delay the execution while all
-other cores are idle. Moreover, as shown on the figure \ref{csr_format_work_distribution} adjacent threads access matrix values in a strided way. When concurrent threads simultaneously 
+inefficiency are load balancing, thread divergence, and memory access pattern. As shown in figure \ref{csr_format_work_distribution}, only half
+of the block threads have non-zeroes to process. Thus, a single dense row can arbitrarily delay the execution while all
+other cores are idle. Moreover, as shown in figure \ref{csr_format_work_distribution}, adjacent threads access matrix values in a strided way. When concurrent threads simultaneously 
 access memory addresses that are far apart in physical memory, then there is no chance for the hardware to combine the accesses. Performance
 results for naive CSR-Scalar implementation are presented in table \ref{csr_scalar_speedup_table}. 
 
@@ -531,7 +531,7 @@ results for naive CSR-Scalar implementation are presented in table \ref{csr_scal
 
 The speedup distribution is shown in figures \ref{csr_scalar_speedup_float} and \ref{csr_scalar_speedup_double}. To answer the question
 how naive described implementation really is I've compared it with the NVIDIA CUDA Sparse Matrix library (cuSPARSE) CSR implementation
-(tab. \ref{csr_cusparse_speedup_table}), which has better average speedup (fig. \ref{csr_cusparse_speedup_float} and \ref{csr_cusparse_speedup_double}). 
+(tab. \ref{csr_cusparse_speedup_table}), which has a better average speedup (fig. \ref{csr_cusparse_speedup_float} and \ref{csr_cusparse_speedup_double}). 
 
 \begin{table}[H]
 	\centering
@@ -556,7 +556,7 @@ how naive described implementation really is I've compared it with the NVIDIA CU
 \subfloat[CSR-Scalar speedup (double) \label{csr_scalar_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_double_dist.pdf}}
 \end{figure}
 
-This results shows that there is a room for optimization of CSR SpMV. First possible optimization is to assign warp per row instead of thread.
+These results show that there is room for optimization of CSR SpMV. The first possible optimization is to assign warp per row instead of thread.
 This algorithm (list. \ref{csr_vector}) is called CSR-Vector. The vector kernel accesses indices and data contiguously (fig. \ref{csr_vector_format_mem_access_pattern}), 
 and therefore overcomes the principal deficiency of the scalar approach. Unlike the previous CSR implementation, which used one thread per matrix row, this optimization requires
 coordination among threads within the same warp. 
@@ -651,9 +651,9 @@ coordination among threads within the same warp.
   \label{csr_vector_format_mem_access_pattern}
 \end{figure}
 
-In case of CSR-Vector reduction might be implemented using warp-level primitives (list. \ref{warp_reduce}). In that case the data 
-exchange is performed between registers, and more efficient than going through shared memory, which requires a load, 
-a store and an extra register to hold the address.
+In the case of CSR-Vector reduction might be implemented using warp-level primitives (list. \ref{warp_reduce}). In that case, the data 
+exchange is performed between registers and more efficient than going through shared memory, which requires a load, 
+a store, and an extra register to hold the address.
 
 \begin{listing}[H]
 \begin{minted}[linenos,tabsize=2]{cuda}
@@ -733,8 +733,8 @@ than CSR-Scalar (for both float and double matrices) and cuSPARSE implementation
 \subfloat[CSR-Vector speedup (double) \label{csr_vector_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_vector_double_dist.pdf}}
 \end{figure}
 
-However, CSR-Scalar outperform CSR-Vector on about $33\%$ of float matrices with $10000$ nnz lower limit and on $40\%$ of float matrices with $100000$ nnz lower limit 
-(fig \ref{csr_csr_outperform_vec} and \ref{vec_csr_outperform_vec}). On that matrices CSR shows average speedup equal to $8.57$ while CSR-Vector
+However, CSR-Scalar outperforms CSR-Vector on about $33\%$ of float matrices with $10000$ nnz lower limit and on $40\%$ of float matrices with $100000$ nnz lower limit 
+(fig \ref{csr_csr_outperform_vec} and \ref{vec_csr_outperform_vec}). On that matrices, CSR shows average speedup equal to $8.57$ while CSR-Vector
 only $4.80$. 
 
 \begin{figure}[H]
@@ -744,10 +744,10 @@ only $4.80$.
 \subfloat[CSR-Vector speedup (double) \label{vec_csr_outperform_vec}] {\includegraphics[width=1.0\textwidth]{img/vec_csr_outperform_csr_vec.pdf}}
 \end{figure}
 
-To discover further improvements of CSR SpMV implementation we need to consider first matrix part from figure \ref{csr_format}. In first four rows
-of matrix there is only one non-zero value per row. In that case whole warp's threads except first are idle. In this case it's possible
-for naive CSR SpMV implementation to outperform vector implementation. There is SpMV algorithm for CSR matrix that doesn't depend on nnz/row ratio.
-The CSR-Adaptive changes it's behaviour depending on the nnz in each row (list. \ref{csr_adaptive}). After selecting non-zeroes per block value 
+To discover further improvements of CSR SpMV implementation, we need to consider the first matrix part from figure \ref{csr_format}. In the first four rows
+of the matrix, there is only one non-zero value per row. In that case whole warp's threads except first are idle. In this case, it's possible
+for naive CSR SpMV implementation to outperform vector implementation. There is an SpMV algorithm for the CSR matrix format that doesn't depend on nnz/row ratio.
+The CSR-Adaptive changes it's behavior depending on the nnz in each row (list. \ref{csr_adaptive}). After selecting non-zeroes per block value,
 additional array ($row\_blocks$) for storing block rows is constructed. If some rows contain small nnz, they'll be gathered into one block. Then
 CUDA threads block is assigned to each rows block. The case of multiple rows in one rows block is called CSR-Stream. If there is only one row
 in rows block, the CSR-Vector will be called. If this row exceeds $nnz\_per\_wg$ than CSR-VectorL variant will be used. The main difference between
@@ -800,9 +800,9 @@ __global__ void csr_adaptive_spmv_kernel (
 \end{listing}
 
 
-The CSR-Vector and CSR-VectorL part are quite similar CSR-Vector algorithm, so I won't include listing here. Figure \ref{csr_adaptive_format_mem_access_pattern}
-illustrates memory access pattern of CSR-Stream part. It stores partial sums in shared memory of GPU and then reduces them. The partial results in cache in
-figure \ref{csr_adaptive_format_mem_access_pattern} are calculated with $x$ filled with $1$. Source code of CSR-Stream is presented in listing \ref{csr_stream_implementation}.
+The CSR-Vector and CSR-VectorL parts are quite similar CSR-Vector algorithm, so I won't include listing here. Figure \ref{csr_adaptive_format_mem_access_pattern}
+illustrates memory access pattern of the CSR-Stream part. It stores partial sums in shared memory of GPU and then reduces them. The partial results in cache in
+figure \ref{csr_adaptive_format_mem_access_pattern} are calculated with $x$ filled with $1$. The source code of CSR-Stream is presented in listing \ref{csr_stream_implementation}.
 
 \begin{figure}[H]
   \centering
@@ -985,11 +985,11 @@ else
 \label{csr_stream_implementation}
 \end{listing}
 
-On discussed set of matrices (fig. \ref{csr_csr_outperform_vec} and \ref{vec_csr_outperform_vec}), where CSR outperformed CSR-Vector, CSR-Adaptive
-shows better speedup. CSR-Adaptive outperform CSR-Scalar on those $291$ matrices.
+On the discussed set of matrices (fig. \ref{csr_csr_outperform_vec} and \ref{vec_csr_outperform_vec}), where CSR outperformed CSR-Vector, CSR-Adaptive
+shows better speedup. CSR-Adaptive outperforms CSR-Scalar on those $291$ matrices.
 Although CSR-Adaptive might be outperformed by CSR-Vector on some long-row matrices, it has better speedup in average (tab. \ref{csr_vector_speedup_table}, 
 fig. \ref{csr_adaptive_speedup_float} and \ref{csr_adaptive_speedup_double}). The main advantage of CSR-Adaptive is that you won't need to change
-the code that generates matrix if your code already use CSR. The matrix formats presented below don't have this quality.
+the code that generates a matrix if your code already uses CSR. The matrix formats presented below don't have this quality.
 
 \begin{table}[H]
 	\centering
@@ -1014,10 +1014,13 @@ the code that generates matrix if your code already use CSR. The matrix formats 
 \subfloat[CSR-Adaptive speedup (double) \label{csr_adaptive_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_adaptive_double_dist.pdf}}
 \end{figure}
 
+
+
+
 \subsection{ELL}
 The problem of noncoalesced memory accesses of CSR can be addressed by applying data padding and transposition on the sparse matrix data.
-The Ellpack-Itpack (ELL) sparse matrix format assumes that each row contain at most \textit{elements\_in\_rows} elements and \textit{elements\_in\_rows} is small. All rows
-are zero padded to that value. Unlike CSR the rows pointers array is of no need. ELL is most efficient when the maximum number of nonzeros per
+The Ellpack-Itpack (ELL) sparse matrix format assumes that each row contains at most \textit{elements\_in\_rows} elements and \textit{elements\_in\_rows} is small. All rows
+are zero-padded to that value. Unlike CSR, the rows pointers array is of no need. ELL is most efficient when the maximum number of nonzeros per
 row does not substantially differ from the average.
 
 \begin{figure}[H]
