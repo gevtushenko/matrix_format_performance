@@ -9,12 +9,24 @@
 
 #include <memory>
 
+struct matrix_rows_statistic
+{
+  unsigned int min_elements_in_rows {};
+  unsigned int max_elements_in_rows {};
+  unsigned int avg_elements_in_rows {};
+  double elements_in_rows_std_deviation {};
+};
+
+matrix_rows_statistic get_rows_statistics (
+    const matrix_market::matrix_class::matrix_meta &meta,
+    const unsigned int *row_ptr);
+
 template <typename data_type>
 class csr_matrix_class
 {
 public:
   csr_matrix_class () = delete;
-  explicit csr_matrix_class (const matrix_market::matrix_class &matrix);
+  explicit csr_matrix_class (const matrix_market::matrix_class &matrix, bool row_ptr_only=false);
 
   const matrix_market::matrix_class::matrix_meta meta;
 

@@ -10,16 +10,21 @@
 #include <numeric>
 #include <limits>
 #include <chrono>
+#include <cmath>
 
 template <typename data_type>
-csr_matrix_class<data_type>::csr_matrix_class (const matrix_market::matrix_class &matrix)
+csr_matrix_class<data_type>::csr_matrix_class (const matrix_market::matrix_class &matrix, bool row_ptr_only)
   : meta (matrix.meta)
 {
   if (meta.matrix_storage_scheme != matrix_market::matrix_class::storage_scheme::general)
     throw std::runtime_error ("Only general matrices are supported");
 
-  data.reset (new data_type [meta.non_zero_count]);
-  columns.reset (new unsigned int[meta.non_zero_count]);
+  if (!row_ptr_only)
+  {
+    data.reset (new data_type [meta.non_zero_count]);
+    columns.reset (new unsigned int[meta.non_zero_count]);
+  }
+
   row_ptr.reset (new unsigned int[meta.rows_count + 1]);
   std::fill_n (row_ptr.get (), meta.rows_count + 1, 0u);
 
@@ -38,42 +43,45 @@ csr_matrix_class<data_type>::csr_matrix_class (const matrix_market::matrix_class
     ptr += tmp;
   }
 
-  std::unique_ptr<unsigned int[]> row_element_id (new unsigned int[meta.rows_count]);
-  std::fill_n (row_element_id.get (), meta.rows_count, 0u);
-
-  for (unsigned int i = 0; i < meta.non_zero_count; i++)
+  if (!row_ptr_only)
   {
-    const unsigned int row = src_rows[i];
-    const unsigned int element_offset = row_ptr[row] + row_element_id[row]++;
-    data[element_offset] = src_data[i];
-    columns[element_offset] = src_cols[i];
-  }
+    std::unique_ptr<unsigned int[]> row_element_id (new unsigned int[meta.rows_count]);
+    std::fill_n (row_element_id.get (), meta.rows_count, 0u);
 
-  std::vector<unsigned int> permutation;
-  std::vector<unsigned int> tmp_columns;
-  std::vector<data_type> tmp_data;
-  for (unsigned int i = 0; i < meta.rows_count; i++)
-  {
-    const auto row_begin = row_ptr[i];
-    const auto row_end = row_ptr[i + 1];
-    const auto n_elements = row_end - row_begin;
-
-    permutation.resize (n_elements);
-    tmp_columns.resize (n_elements);
-    tmp_data.resize (n_elements);
-
-    std::copy_n (data.get () + row_begin, n_elements, tmp_data.data ());
-    std::copy_n (columns.get () + row_begin, n_elements, tmp_columns.data ());
-
-    std::iota (permutation.begin (), permutation.end (), 0);
-    std::sort (permutation.begin (), permutation.end (), [&] (const unsigned int &l, const unsigned int &r) {
-      return columns[row_begin + l] < columns[row_begin + r];
-    });
-
-    for (unsigned int element = 0; element < n_elements; element++)
+    for (unsigned int i = 0; i < meta.non_zero_count; i++)
     {
-      data[row_begin + element] = tmp_data[permutation[element]];
-      columns[row_begin + element] = tmp_columns[permutation[element]];
+      const unsigned int row = src_rows[i];
+      const unsigned int element_offset = row_ptr[row] + row_element_id[row]++;
+      data[element_offset] = src_data[i];
+      columns[element_offset] = src_cols[i];
+    }
+
+    std::vector<unsigned int> permutation;
+    std::vector<unsigned int> tmp_columns;
+    std::vector<data_type> tmp_data;
+    for (unsigned int i = 0; i < meta.rows_count; i++)
+    {
+      const auto row_begin = row_ptr[i];
+      const auto row_end = row_ptr[i + 1];
+      const auto n_elements = row_end - row_begin;
+
+      permutation.resize (n_elements);
+      tmp_columns.resize (n_elements);
+      tmp_data.resize (n_elements);
+
+      std::copy_n (data.get () + row_begin, n_elements, tmp_data.data ());
+      std::copy_n (columns.get () + row_begin, n_elements, tmp_columns.data ());
+
+      std::iota (permutation.begin (), permutation.end (), 0);
+      std::sort (permutation.begin (), permutation.end (), [&] (const unsigned int &l, const unsigned int &r) {
+        return columns[row_begin + l] < columns[row_begin + r];
+      });
+
+      for (unsigned int element = 0; element < n_elements; element++)
+      {
+        data[row_begin + element] = tmp_data[permutation[element]];
+        columns[row_begin + element] = tmp_columns[permutation[element]];
+      }
     }
   }
 }
@@ -83,13 +91,6 @@ size_t csr_matrix_class<data_type>::get_matrix_size () const
 {
   return meta.non_zero_count;
 }
-
-struct matrix_rows_statistic
-{
-  unsigned int min_elements_in_rows {};
-  unsigned int max_elements_in_rows {};
-  unsigned int avg_elements_in_rows {};
-};
 
 matrix_rows_statistic get_rows_statistics (
     const matrix_market::matrix_class::matrix_meta &meta,
@@ -113,6 +114,15 @@ matrix_rows_statistic get_rows_statistics (
   }
 
   statistic.avg_elements_in_rows = sum_elements_in_rows / meta.rows_count;
+  statistic.elements_in_rows_std_deviation = 0.0;
+
+  for (unsigned int row = 0; row < meta.rows_count; row++)
+  {
+    const auto elements_in_row = row_ptr[row + 1] - row_ptr[row];
+    statistic.elements_in_rows_std_deviation += std::pow (static_cast<double> (elements_in_row) - statistic.avg_elements_in_rows, 2);
+  }
+  statistic.elements_in_rows_std_deviation = std::sqrt (statistic.elements_in_rows_std_deviation / meta.rows_count);
+
   return statistic;
 }
 
@@ -120,7 +130,7 @@ template <typename data_type>
 size_t ell_matrix_class<data_type>::estimate_size (csr_matrix_class<data_type> &matrix)
 {
   const auto row_ptr = matrix.row_ptr.get ();
-  auto [min_elements, max_elements, avg_elements] = get_rows_statistics (matrix.meta, row_ptr);
+  auto [min_elements, max_elements, avg_elements, std_deviation] = get_rows_statistics (matrix.meta, row_ptr);
   size_t elements_in_rows = max_elements;
 
   return elements_in_rows * matrix.meta.rows_count;
@@ -136,7 +146,7 @@ ell_matrix_class<data_type>::ell_matrix_class (csr_matrix_class<data_type> &matr
   const auto row_ptr = matrix.row_ptr.get ();
   const auto col_ptr = matrix.columns.get ();
 
-  auto [min_elements, max_elements, avg_elements] = get_rows_statistics (meta, row_ptr);
+  auto [min_elements, max_elements, avg_elements, std_deviation] = get_rows_statistics (meta, row_ptr);
   elements_in_rows = max_elements;
 
   std::cout << "ELL: " << elements_in_rows
@@ -288,7 +298,7 @@ void hybrid_matrix_class<data_type>::allocate(csr_matrix_class<data_type> &matri
 {
   const auto row_ptr = matrix.row_ptr.get ();
 
-  auto [_1, max_elements, avg_elements] = get_rows_statistics (meta, row_ptr);
+  auto [_1, max_elements, avg_elements, _2] = get_rows_statistics (meta, row_ptr);
   const unsigned int elements_per_ell = avg_elements + (max_elements - avg_elements) * percent;
 
   ell_matrix = std::make_unique<ell_matrix_class<data_type>> (matrix, elements_per_ell); /// Don't use more than avg elements in an ELL row

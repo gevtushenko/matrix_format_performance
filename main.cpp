@@ -28,6 +28,7 @@
 
 #define CHECK_CUSP 0
 #define CHECK_CPU 0
+#define PREP_MATRIX_META 0
 
 using namespace nlohmann;
 using namespace std;
@@ -443,24 +444,35 @@ int main(int argc, char *argv[])
     auto &meta = reader.matrix ().meta;
     fmt::print ("Complete loading (rows: {}; cols: {}; nnz: {}; nnzpr: {})\n", meta.rows_count, meta.cols_count, meta.non_zero_count, meta.non_zero_count / meta.rows_count);
 
-    unordered_map<string, vector<measurement_class>> results;
-    results["float"] = perform_measurement<float> (mtx, reader, free_gpu_mem, sm_count, shared_mem_size);
-    results["double"] = perform_measurement<double> (mtx, reader, free_gpu_mem, sm_count, shared_mem_size);
-
-    mtx = get_filename (mtx);
-
-    if (results["float"].empty () || results["double"].empty ())
-      continue; // Don't store result for matrices that couldn't be computed on GPU
-
-    for (auto &[type, result]: results)
-    {
-      for (auto &measurement: result)
+    if (!PREP_MATRIX_META)
       {
-        measurements[type][mtx][measurement.get_format ()] = measurement.get_elapsed ();
-        effective_bandwidth[type][mtx][measurement.get_format ()] = measurement.get_effective_bandwidth ();
-        computational_throughput[type][mtx][measurement.get_format ()] = measurement.get_computational_throughput ();
+        unordered_map<string, vector<measurement_class>> results;
+        results["float"] = perform_measurement<float> (mtx, reader, free_gpu_mem, sm_count, shared_mem_size);
+        results["double"] = perform_measurement<double> (mtx, reader, free_gpu_mem, sm_count, shared_mem_size);
+
+        mtx = get_filename (mtx);
+
+        if (results["float"].empty () || results["double"].empty ())
+          continue; // Don't store result for matrices that couldn't be computed on GPU
+
+        for (auto &[type, result]: results)
+          {
+            for (auto &measurement: result)
+              {
+                measurements[type][mtx][measurement.get_format ()] = measurement.get_elapsed ();
+                effective_bandwidth[type][mtx][measurement.get_format ()] = measurement.get_effective_bandwidth ();
+                computational_throughput[type][mtx][measurement.get_format ()] = measurement.get_computational_throughput ();
+              }
+          }
+
       }
-    }
+    else
+      {
+        csr_matrix_class<float> csr_matrix (reader.matrix ());
+        auto stat = get_rows_statistics (csr_matrix.meta, csr_matrix.row_ptr.get ());
+        mtx = get_filename (mtx);
+        matrices_info[mtx]["std_deviation"] = stat.elements_in_rows_std_deviation;
+      }
 
     matrices_info[mtx]["nnz"] = reader.matrix ().meta.non_zero_count;
     matrices_info[mtx]["rows"] = reader.matrix ().meta.rows_count;
