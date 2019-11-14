@@ -1018,7 +1018,7 @@ the code that generates a matrix if your code already uses CSR. The matrix forma
 
 
 \subsection{ELL}
-The problem of noncoalesced memory accesses of CSR can be addressed by applying data padding and transposition on the sparse matrix data.
+The problem of noncoalesced memory accesses of CSR can be addressed by applying data padding and transposition on the sparse matrix data (fig. \ref{ell_format}).
 The Ellpack-Itpack (ELL) sparse matrix format assumes that each row contains at most \textit{elements\_in\_rows} elements and \textit{elements\_in\_rows} is small. All rows
 are zero-padded to that value. Unlike CSR, the rows pointers array is of no need. ELL is most efficient when the maximum number of nonzeros per
 row does not substantially differ from the average.
@@ -1186,6 +1186,12 @@ row does not substantially differ from the average.
   \label{ell_format}
 \end{figure}
 
+Kernel for ELL matrix format is presented in the listing \ref{ell_implementation}. With element padding of the ELL format 
+it's easy to get next row's element position by simply adding the number of rows in the matrix. The padding also fixes the
+number of iteration for each thread, so there is no control flow divergence in warps. Elimination of control flow
+divergence and enabling of memory coalescing allow ELL SpMV kernel to outperform CSR-Scalar implementation on many
+matrices (tab. \ref{csr_ell_speedup_table}, fig. \ref{csr_ell_speedup_float} and \ref{csr_ell_speedup_double}). 
+
 \begin{listing}[H]
 \begin{minted}[linenos,tabsize=2]{cuda}
 template <typename data_type>
@@ -1238,7 +1244,17 @@ __global__ void ell_spmv_kernel (
 \subfloat[ELL speedup (double) \label{csr_ell_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/csr_ell_double_dist.pdf}}
 \end{figure}
 
+The obvious disadvantage of ELL format consist in padding itself. In case of matrix with a few long rows, ELL format will result in 
+excessive number of padded elements. There are a lot of matrices in Florida Collection, that coudn't fit into 8GB of my GPU because
+of ELL's padding. In some cases it leads to the situation, where CSR-Scalar outperform ELL implementation. To eliminate this
+issue, it's possible to remove long rows' extra nnz from ELL matrix into different matrix. It's important to note that
+extracted matrix would have unordered scheme. Many rows will likely be missing from that scheme, so CSR using would be inefficient. 
+One of the formats that could handle that case is COO.
+
 \subsection{COO}
+
+The coordinate (COO) matrix format is a simpliest one. For each NZ it stores it's column and row indicies. Therefore, COO doesn't 
+map elements in rows. That leads us to the necessity of atomic operations in COO kernel (list \ref{coo_implementation}).
 
 \begin{listing}[H]
 \begin{minted}[linenos,tabsize=2]{cuda}

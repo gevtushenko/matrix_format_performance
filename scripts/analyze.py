@@ -44,7 +44,6 @@ setup_printer()
 
 source_df, merged_df = load_data('{}/float.json'.format(path_to_results))
 float_speedup = calculate_speedup(merged_df, source_df)
-ell_csr_speedup = calculate_speedup(merged_df, source_df, 'GPU CSR')
 
 source_df, merged_df = load_data('{}/double.json'.format(path_to_results))
 double_speedup = calculate_speedup(merged_df, source_df)
@@ -130,5 +129,6 @@ if csr_overperform_csr_vec:
 # plt.show()
 
 # sns.jointplot(data=float_speedup, x='nnzpr', y='GPU CSR', kind='reg')
-sns.jointplot(data=ell_csr_speedup.query('nnz > 10000 & std_deviation < 200'), x='std_deviation', y='GPU ELL', kind='reg')
+sns.jointplot(data=double_speedup.query('nnz > 10000 & std_deviation < 200'), x='std_deviation', y='GPU ELL', kind='reg')
+sns.jointplot(data=double_speedup.query('nnz > 10000 & std_deviation < 200'), x='std_deviation', y='GPU Hybrid (atomic)', kind='reg')
 plt.show()
