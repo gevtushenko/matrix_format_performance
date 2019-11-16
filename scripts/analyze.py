@@ -140,6 +140,37 @@ if csr_overperform_csr_vec:
 
 # sns.jointplot(data=float_speedup, x='nnzpr', y='GPU CSR', kind='reg')
 # sns.jointplot(data=double_speedup.query('nnz > 10000 & std_deviation < 200'), x='std_deviation', y='GPU ELL', kind='reg')
-join_show(double_speedup.query('nnz > 10000 & nnzpr < 4000'), 'GPU COO', '../doc/img/coo_nnzpr.pdf')
-join_show(double_speedup.query('nnz > 10000 & nnzpr < 4000'), 'GPU SCOO', '../doc/img/scoo_nnzpr.pdf')
-plt.show()
+
+update_join_plots = False
+if update_join_plots:
+    join_show(double_speedup.query('nnz > 10000 & nnzpr < 4000'), 'GPU COO', '../doc/img/coo_nnzpr.pdf')
+    join_show(double_speedup.query('nnz > 10000 & nnzpr < 4000'), 'GPU SCOO', '../doc/img/scoo_nnzpr.pdf')
+
+
+def factor_show(df):
+    speedup = df.query('nnz > 100000')
+
+    del speedup['nnz']
+    del speedup['cols']
+    del speedup['rows']
+    del speedup['nnzpr']
+    del speedup['std_deviation']
+    del speedup['GPU Hybrid (TODO)']
+    del speedup['CPU CSR']
+    sns.catplot(data=speedup, kind='box')
+
+
+update_factor = False
+if update_factor:
+    factor_show(float_speedup)
+    factor_show(double_speedup)
+    plt.show()
+
+
+selected_matrices_list = ['airfoil_2d.mtx', 'cage10.mtx', 'cavity21.mtx', 'coater2.mtx', 'hvdc1.mtx', 'lhr07.mtx',
+                          'ASIC_100ks.mtx', 'Zd_Jac3_db.mtx', 'scircuit.mtx']
+
+for mtx in selected_matrices_list:
+    print(float_speedup.loc[mtx])
+
+print(float_speedup[(float_speedup['GPU CSR-Adaptive'] > float_speedup['GPU Hybrid (atomic)']) & (float_speedup['GPU CSR-Adaptive'] > float_speedup['GPU CSR (vector)'])])

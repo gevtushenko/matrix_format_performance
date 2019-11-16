@@ -1337,7 +1337,7 @@ single row. Reducing slice size increases lanes size and thus more shared memory
 \subsection{Hybrid}
 It's possible to use ELL matrix format on regular part of the matrix and COO on the elements removed from extra-long rows. This scheme
 significantly reduces the number of padded elements in ELL format. This approach is often called as hybrid. There is different options
-for combining results of ELL and COO SpMV. 
+for combining results of ELL and COO SpMV. In this post I use atomic case (list. \ref{hybrid_implementation}).
 
 \begin{listing}[H]
 \begin{minted}[linenos,tabsize=2]{cuda}
@@ -1349,10 +1349,10 @@ __global__ void hybrid_spmv_kernel (
     const unsigned int *ell_col_ids,
     const unsigned int *col_ids,
     const unsigned int *row_ids,
-    const data_type*ell_data,
-    const data_type*coo_data,
-    const data_type*x,
-    data_type*y)
+    const data_type *ell_data,
+    const data_type *coo_data,
+    const data_type *x,
+    data_type *y)
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -1380,6 +1380,9 @@ __global__ void hybrid_spmv_kernel (
 \label{hybrid_implementation}
 \end{listing}
 
+Althought, the average performance results (tab. \ref{hyb_speedup_table}, fig. \ref{hyb_scoo_speedup_float} and \ref{hyb_scoo_speedup_double}) are
+quite close to CSR-Adaptive SpMV, Hybrid format requires extra actions of splitting matrix, which might require rewriting of matrix calculation code base.
+
 \begin{table}[H]
 	\centering
 	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
@@ -1402,6 +1405,8 @@ __global__ void hybrid_spmv_kernel (
 \qquad %
 \subfloat[HYB speedup (double) \label{hyb_scoo_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/hybrid_double_dist.pdf}}
 \end{figure}
+
+
 
 
 \section{Conclusion}
