@@ -1253,7 +1253,7 @@ One of the formats that could handle that case is COO.
 
 \subsection{COO}
 
-The coordinate (COO) matrix format is a simpliest one. For each NZ it stores it's column and row indicies. Therefore, COO doesn't 
+The coordinate (COO) matrix format is a the simpliest one. For each NZ it stores it's column and row indicies. Therefore, COO doesn't 
 map elements in rows. That leads us to the necessity of atomic operations in COO kernel (list \ref{coo_implementation}).
 
 \begin{listing}[H]
@@ -1263,17 +1263,14 @@ __global__ void coo_spmv_kernel (
     unsigned int n_elements,
     const unsigned int *col_ids,
     const unsigned int *row_ids,
-    const data_type*data,
-    const data_type*x,
-    data_type*y)
+    const data_type *data,
+    const data_type *x,
+    data_type *y)
 {
   unsigned int element = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (element < n_elements)
-  {
-    const data_type dot = data[element] * x[col_ids[element]];
-    atomicAdd (y + row_ids[element], dot);
-  }
+    atomicAdd (y + row_ids[element], data[element] * x[col_ids[element]]);
 }
 \end{minted}
 \caption{COO implementation}
@@ -1303,6 +1300,21 @@ __global__ void coo_spmv_kernel (
 \subfloat[COO speedup (double) \label{csr_coo_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/coo_double_dist.pdf}}
 \end{figure}
 
+COO SpMV implementation works at the granularity of threads per element (\ref{coo_implementation}). Atomic updates to the result vector 
+reduce performance. The wider rows in COO format, the more serialized SpMV is. This fact can be noticed from figure \ref{coo_nnzpr}. To improve
+performance of this format it's possible to slice the matrix info chunks with the rows count that fits into shared memory.
+
+\begin{figure}[H]
+\centering
+  \includegraphics[width=1.0\textwidth]{img/coo_nnzpr.pdf}
+  \caption{The dependence of the COO parameter on the average NNZ}
+  \label{coo_nnzpr}
+\end{figure}
+
+Matrix format that uses shared memory to improve atomic operations performance in COO SpMV is called Sliced COO (SCOO).
+To reduce shared memory bank conflicts, SCOO allows multiple lanes in the shared memory for updating the intermediate results of a
+single row. Reducing slice size increases lanes size and thus more shared memory lanes are available.
+
 \begin{table}[H]
 	\centering
 	\begin{tabular}{ |p{2.6cm}||p{1cm}|p{1cm}|p{1cm}|p{1cm}|  }
@@ -1319,15 +1331,54 @@ __global__ void coo_spmv_kernel (
   \label{scoo_speedup_table}
 \end{table}
 
-\begin{figure}[H]
-\centering
-\subfloat[SCOO speedup (float) \label{csr_scoo_speedup_float}]  {\includegraphics[width=1.0\textwidth]{img/scoo_float_dist.pdf}}
-\qquad %
-\subfloat[SCOO speedup (double) \label{csr_scoo_speedup_double}] {\includegraphics[width=1.0\textwidth]{img/scoo_double_dist.pdf}}
-\end{figure}
+
 
 
 \subsection{Hybrid}
+It's possible to use ELL matrix format on regular part of the matrix and COO on the elements removed from extra-long rows. This scheme
+significantly reduces the number of padded elements in ELL format. This approach is often called as hybrid. There is different options
+for combining results of ELL and COO SpMV. 
+
+\begin{listing}[H]
+\begin{minted}[linenos,tabsize=2]{cuda}
+template <typename data_type>
+__global__ void hybrid_spmv_kernel (
+    unsigned int n_rows,
+    unsigned int n_elements,
+    unsigned int elements_in_rows,
+    const unsigned int *ell_col_ids,
+    const unsigned int *col_ids,
+    const unsigned int *row_ids,
+    const data_type*ell_data,
+    const data_type*coo_data,
+    const data_type*x,
+    data_type*y)
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx < n_rows)
+  {
+    const unsigned int row = idx;
+
+    data_type sum = 0;
+    for (unsigned int element = 0; element < elements_in_rows; element++)
+    {
+      const unsigned int element_offset = row + element * n_rows;
+      sum += ell_data[element_offset] * x[ell_col_ids[element_offset]];
+    }
+    atomicAdd (y + row, sum);
+  }
+
+  for (unsigned int element = idx; element < n_elements; element += blockDim.x * gridDim.x)
+  {
+    const data_type sum = coo_data[element] * x[col_ids[element]];
+    atomicAdd (y + row_ids[element], sum);
+  }
+}
+\end{minted}
+\caption{Hybrid implementation}
+\label{hybrid_implementation}
+\end{listing}
 
 \begin{table}[H]
 	\centering

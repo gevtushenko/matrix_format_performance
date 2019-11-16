@@ -84,6 +84,16 @@ def dist_show(df, target, filename=''):
         plt.show()
 
 
+def join_show(df, target, filename=''):
+    sns.jointplot(data=df, x='nnzpr', y=target, kind='reg', height=14, joint_kws={'scatter_kws': dict(alpha=0.6)})
+
+    if filename:
+        plt.legend(prop={'size': 12})
+        plt.savefig(filename, dpi=200, bbox_inches='tight')
+    else:
+        plt.legend(prop={'size': 22})
+        plt.show()
+
 update_dist_plots = False
 if update_dist_plots:
     dist_show(float_speedup, 'GPU CSR', '../doc/img/csr_float_dist.pdf')
@@ -129,6 +139,7 @@ if csr_overperform_csr_vec:
 # plt.show()
 
 # sns.jointplot(data=float_speedup, x='nnzpr', y='GPU CSR', kind='reg')
-sns.jointplot(data=double_speedup.query('nnz > 10000 & std_deviation < 200'), x='std_deviation', y='GPU ELL', kind='reg')
-sns.jointplot(data=double_speedup.query('nnz > 10000 & std_deviation < 200'), x='std_deviation', y='GPU Hybrid (atomic)', kind='reg')
+# sns.jointplot(data=double_speedup.query('nnz > 10000 & std_deviation < 200'), x='std_deviation', y='GPU ELL', kind='reg')
+join_show(double_speedup.query('nnz > 10000 & nnzpr < 4000'), 'GPU COO', '../doc/img/coo_nnzpr.pdf')
+join_show(double_speedup.query('nnz > 10000 & nnzpr < 4000'), 'GPU SCOO', '../doc/img/scoo_nnzpr.pdf')
 plt.show()
