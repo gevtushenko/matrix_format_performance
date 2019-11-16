@@ -167,10 +167,28 @@ if update_factor:
     plt.show()
 
 
-selected_matrices_list = ['airfoil_2d.mtx', 'cage10.mtx', 'cavity21.mtx', 'coater2.mtx', 'hvdc1.mtx', 'lhr07.mtx',
-                          'ASIC_100ks.mtx', 'Zd_Jac3_db.mtx', 'scircuit.mtx']
+def catplot_show(df, filename=''):
+    selected_matrices_list = ['airfoil_2d.mtx', 'cage10.mtx', 'cavity21.mtx', 'coater2.mtx', 'hvdc1.mtx', 'lhr07.mtx',
+                              'ASIC_100ks.mtx', 'Zd_Jac3_db.mtx', 'scircuit.mtx']
+    selected_df = df[df.index.isin(selected_matrices_list)].reset_index()
+    del selected_df['nnz']
+    del selected_df['cols']
+    del selected_df['rows']
+    del selected_df['nnzpr']
+    del selected_df['std_deviation']
+    del selected_df['GPU Hybrid (TODO)']
+    del selected_df['CPU CSR']
 
-for mtx in selected_matrices_list:
-    print(float_speedup.loc[mtx])
+    melted_df = pd.melt(selected_df, id_vars='index', var_name='matrix_format', value_name='speedup')
+    sns.catplot(data=melted_df, x='index', y='speedup', hue='matrix_format', kind='bar', height=12)
 
-print(float_speedup[(float_speedup['GPU CSR-Adaptive'] > float_speedup['GPU Hybrid (atomic)']) & (float_speedup['GPU CSR-Adaptive'] > float_speedup['GPU CSR (vector)'])])
+    if filename:
+        plt.legend(prop={'size': 12})
+        plt.savefig(filename, dpi=200, bbox_inches='tight')
+    else:
+        plt.legend(prop={'size': 22})
+        plt.show()
+
+
+catplot_show(float_speedup, '../doc/img/selected_float.pdf')
+catplot_show(double_speedup, '../doc/img/selected_double.pdf')
