@@ -183,10 +183,8 @@ def catplot_show(df, filename=''):
     sns.catplot(data=melted_df, x='index', y='speedup', hue='matrix_format', kind='bar', height=12)
 
     if filename:
-        plt.legend(prop={'size': 12})
         plt.savefig(filename, dpi=200, bbox_inches='tight')
     else:
-        plt.legend(prop={'size': 22})
         plt.show()
 
 
